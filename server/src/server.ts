@@ -1,16 +1,9 @@
-import dotenv from 'dotenv';
 import app from './app';
 import logger from '@/utils/logger';
 import prisma from '@/config/database';
 import redis from '@/config/redis';
-import path from 'path';
 
 import { envConfig } from './config/env.config';
-
-// Load environment variables
-dotenv.config({
-  path: path.resolve(__dirname, '../../.env'),
-});
 
 const PORT = envConfig.portNumber;
 

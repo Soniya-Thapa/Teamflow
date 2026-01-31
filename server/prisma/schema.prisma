@@ -6,16 +6,373 @@
 
 generator client {
   provider = "prisma-client-js"
-   // tell Prisma where the .env is
-  env = "../.env"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+// ENUMS
+
+enum OrganizationPlan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+  CANCELED
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+  GUEST
+}
+
+enum MemberStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+  COMPLETED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  REVIEW
+  DONE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TeamMemberRole {
+  TEAM_LEAD
+  MEMBER
+}
+
+// CORE ENTITIES
+
+model Organization {
+  id          String             @id @default(uuid())
+  name        String
+  slug        String             @unique
+  logo        String?
+  plan        OrganizationPlan   @default(FREE)
+  status      OrganizationStatus @default(ACTIVE)
+  maxUsers    Int                @default(5)
+  maxProjects Int                @default(3)
+  maxStorage  BigInt             @default(1073741824) // 1GB in bytes
+  ownerId     String
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  // Relations
+  owner         User                 @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members       OrganizationMember[]
+  teams         Team[]
+  projects      Project[]
+  tasks         Task[]
+  invitations   Invitation[]
+  activityLogs  ActivityLog[]
+  notifications Notification[]
+  attachments   Attachment[]
+
+  @@index([slug])
+  @@index([status])
+  @@index([ownerId])
+  @@map("organizations")
+}
+
 model User {
-  id    Int     @id @default(autoincrement())
-  email String  @unique
-  name  String?
+  id              String    @id @default(uuid())
+  email           String    @unique
+  password        String
+  firstName       String
+  lastName        String
+  avatar          String?
+  isEmailVerified Boolean   @default(false)
+  lastLoginAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  ownedOrganizations  Organization[]       @relation("OrganizationOwner")
+  organizationMembers OrganizationMember[]
+  teamMembers         TeamMember[]
+  createdProjects     Project[]            @relation("ProjectCreator")
+  assignedTasks       Task[]               @relation("TaskAssignee")
+  createdTasks        Task[]               @relation("TaskCreator")
+  comments            Comment[]
+  attachments         Attachment[]
+  sentInvitations     Invitation[]         @relation("InvitationSender")
+  activityLogs        ActivityLog[]
+  notifications       Notification[]
+  refreshTokens       RefreshToken[]
+  invitedMembers      OrganizationMember[] @relation("MemberInviter")
+
+  @@index([email])
+  @@index([lastLoginAt])
+  @@map("users")
+}
+
+model OrganizationMember {
+  id             String       @id @default(uuid())
+  userId         String
+  organizationId String
+  role           MemberRole   @default(MEMBER)
+  status         MemberStatus @default(INVITED)
+  invitedBy      String?
+  joinedAt       DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  // Relations
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inviter      User?        @relation("MemberInviter", fields: [invitedBy], references: [id], onDelete: SetNull)
+
+  @@unique([userId, organizationId])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([status])
+  @@map("organization_members")
+}
+
+model Team {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  description    String?
+  leaderId       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members      TeamMember[]
+  projects     Project[]
+
+  @@index([organizationId])
+  @@index([leaderId])
+  @@map("teams")
+}
+
+model TeamMember {
+  id        String         @id @default(uuid())
+  teamId    String
+  userId    String
+  role      TeamMemberRole @default(MEMBER)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  // Relations
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
+  @@map("team_members")
+}
+
+model Project {
+  id             String        @id @default(uuid())
+  organizationId String
+  teamId         String?
+  name           String
+  description    String?
+  status         ProjectStatus @default(ACTIVE)
+  startDate      DateTime?
+  endDate        DateTime?
+  createdBy      String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  team         Team?        @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  creator      User         @relation("ProjectCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  tasks        Task[]
+
+  @@index([organizationId])
+  @@index([teamId])
+  @@index([status])
+  @@index([createdBy])
+  @@map("projects")
+}
+
+model Task {
+  id             String       @id @default(uuid())
+  organizationId String
+  projectId      String
+  title          String
+  description    String?
+  status         TaskStatus   @default(TODO)
+  priority       TaskPriority @default(MEDIUM)
+  assignedTo     String?
+  dueDate        DateTime?
+  estimatedHours Int?
+  actualHours    Int?
+  createdBy      String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee     User?        @relation("TaskAssignee", fields: [assignedTo], references: [id], onDelete: SetNull)
+  creator      User         @relation("TaskCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  comments     Comment[]
+  attachments  Attachment[]
+
+  @@index([organizationId])
+  @@index([projectId])
+  @@index([assignedTo])
+  @@index([status])
+  @@index([priority])
+  @@index([dueDate])
+  @@map("tasks")
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  taskId    String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("comments")
+}
+
+model Attachment {
+  id             String   @id @default(uuid())
+  taskId         String
+  organizationId String
+  fileName       String
+  fileUrl        String
+  fileSize       BigInt
+  mimeType       String
+  uploadedBy     String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  task         Task         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploader     User         @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([organizationId])
+  @@index([uploadedBy])
+  @@map("attachments")
+}
+
+model Invitation {
+  id             String     @id @default(uuid())
+  organizationId String
+  email          String
+  role           MemberRole @default(MEMBER)
+  token          String     @unique
+  invitedBy      String
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inviter      User         @relation("InvitationSender", fields: [invitedBy], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([email])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("invitations")
+}
+
+model ActivityLog {
+  id             String   @id @default(uuid())
+  organizationId String
+  userId         String
+  action         String
+  resourceType   String
+  resourceId     String
+  metadata       Json?
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([resourceType])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+model Notification {
+  id             String   @id @default(uuid())
+  userId         String
+  organizationId String
+  type           String
+  title          String
+  message        String
+  isRead         Boolean  @default(false)
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
 }

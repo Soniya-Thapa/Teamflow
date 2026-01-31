@@ -2,10 +2,8 @@ import Redis from 'ioredis';
 import logger from '@/utils/logger';
 import { envConfig } from './env.config';
 
-/**
- * Redis Client Configuration
- * Supports both local development and cloud deployment
- */
+// Redis Client Configuration
+// Supports both local development and cloud deployment
 
 let redis: Redis;
 
