@@ -102,11 +102,11 @@ TeamFlow/
 
 ## 🐳 Docker Services
 
-| Service | Port | Credentials |
-|---------|------|-------------|
-| **PostgreSQL** | 5432 | teamflow_user / teamflow_pass |
-| **Redis** | 6379 | No password |
-| **pgAdmin** | 5050 | admin@teamflow.local / admin123 |
+| Service         | Port | Credentials                       |
+|-----------------|------|-----------------------------------|
+| **PostgreSQL**  | 5432 | teamflow_user / teamflow_pass     |
+| **Redis**       | 6379 | Password in .env                  |
+| **pgAdmin**     | 5050 | admin@teamflow.local / admin123   |
 
 Access pgAdmin: http://localhost:5050
 
@@ -133,9 +133,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 👨‍💻 Author
 
-**Your Name**
-- GitHub: [@yourusername](https://github.com/yourusername)
-- LinkedIn: [Your Profile](https://linkedin.com/in/yourprofile)
+**Soniya Thapa**
+- GitHub: [@Soniya-Thapa](https://github.com/Soniya-Thapa/Teamflow.git)
+- LinkedIn: [Soniya Thapa](https://www.linkedin.com/in/soniya-thapa-42227b320/)
 
 ## 🙏 Acknowledgments
 
