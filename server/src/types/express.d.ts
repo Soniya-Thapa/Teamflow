@@ -1,3 +1,4 @@
+
 import { User } from '@prisma/client';
 
 /**
@@ -10,6 +11,7 @@ declare global {
       user?: User;
       userId?: string;
       organizationId?: string;
+      memberRole?: MemberRole;
     }
   }
 }

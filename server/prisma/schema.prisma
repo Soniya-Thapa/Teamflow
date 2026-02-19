@@ -82,7 +82,7 @@ model Organization {
   updatedAt   DateTime           @updatedAt
 
   // Relations
-  owner         User                 @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  owner         User             @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members       OrganizationMember[]
   teams         Team[]
   projects      Project[]
@@ -124,7 +124,7 @@ model User {
   notifications       Notification[]
   refreshTokens       RefreshToken[]
   invitedMembers      OrganizationMember[] @relation("MemberInviter")
-
+  passwordResetTokens PasswordResetToken[]
   @@index([email])
   @@index([lastLoginAt])
   @@map("users")
@@ -375,4 +375,20 @@ model RefreshToken {
   @@index([token])
   @@index([expiresAt])
   @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
 }

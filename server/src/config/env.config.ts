@@ -1,21 +1,26 @@
+
 import { config } from "dotenv" //config is function given by dotenv
 config()
 
 export const envConfig = {
 
-
-  corsOrigin : process.env.CORS_ORIGIN || 'http://localhost:3000',
-  apiPrefix :  process.env.API_PREFIX || '/api/v1',
+  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  apiPrefix: process.env.API_PREFIX || '/api/v1',
   portNumber: process.env.PORT || 5000,
   nodeEnv: process.env.NODE_ENV || 'development',
 
-  redisUrl : process.env.REDIS_URL,
-  redisHost : process.env.REDIS_HOST || 'localhost', 
-  redisPort : process.env.REDIS_PORT || '6379',
-  redisPassword : process.env.REDIS_PASSWORD, 
+  redisUrl: process.env.REDIS_URL,
+  redisHost: process.env.REDIS_HOST || 'localhost',
+  redisPort: process.env.REDIS_PORT || '6379',
+  redisPassword: process.env.REDIS_PASSWORD,
 
-  logLevel : process.env.LOG_LEVEL || 'info',
+  logLevel: process.env.LOG_LEVEL || 'info',
 
+  jwtSecret: process.env.JWT_SECRET,
+  jwtRefreshSecret: process.env.JWT_REFRESH_SECRET,
+  expiresIn: process.env.JWT_EXPIRES_IN,
+  refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
+ 
   // databaseUrl: process.env.DATABASE_URL,
 
   // jwtSecretKey: process.env.JWT_SECRET,

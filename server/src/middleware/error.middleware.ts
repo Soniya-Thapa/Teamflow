@@ -1,14 +1,13 @@
+
 import type { Request, Response, NextFunction } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { ZodError } from 'zod';
-
 import ApiError from '@/utils/ApiError';
 import logger from '@/utils/logger';
 import { envConfig } from '@/config/env.config';
 
-/**
- * Global error handling middleware
- */
+// Global error handling middleware
+
 export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction) => {
   let error = err;
 

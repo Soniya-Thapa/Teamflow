@@ -1,6 +1,10 @@
+
 import type { Request, Response, NextFunction } from 'express';
 import { ZodError, ZodType } from 'zod';
 import { StatusCodes } from 'http-status-codes';
+
+// Zod validation middleware
+// Validates request body, query, and params
 
 export const validate = (schema: ZodType) => {
   return async (req: Request, res: Response, next: NextFunction) => {

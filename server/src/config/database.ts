@@ -1,15 +1,20 @@
+
 import { PrismaClient } from '@prisma/client';
 import logger from '@/utils/logger';
 import { envConfig } from './env.config';
+
+// DbClient is the database client
+// It handles:
+//  |->connecting to the database
+//  |->sending queries
+//  |->returning result
 
 //Prisma Database Client
 //Singleton pattern to prevent multiple instances
 
 const prisma = new PrismaClient({
   log:
-    envConfig.nodeEnv === 'development'
-      ? ['query', 'info', 'warn', 'error']
-      : ['error'],
+    envConfig.nodeEnv === 'development'? ['query', 'info', 'warn', 'error'] : ['error'],
   errorFormat: 'minimal',
 });
 
@@ -21,7 +26,7 @@ prisma
   })
   .catch((error:any) => {
     logger.error('❌ Database connection failed:', error);
-    process.exit(1);
+    process.exit(1); // exit with error code 1 (common convention)
   });
 
 // Graceful shutdown

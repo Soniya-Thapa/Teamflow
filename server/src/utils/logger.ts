@@ -1,8 +1,26 @@
+
 import { envConfig } from '@/config/env.config';
 import winston from 'winston';
 
+// Logger is a tool to log messages (like console.log)
+// But it’s more powerful and structured
+// Instead of just printing to the console, it can:
+//    |->Add timestamps
+//    |->Add log levels (info, warn, error)
+//    |->Format messages nicely
+//    |->Save logs to files or external services
+
 //Winston Logger Configuration
 //Deployment-safe: Uses console logging for cloud platforms
+
+// When you create a Winston logger, it automatically gives you methods for different log levels:
+// logger.error() → for errors
+// logger.warn() → for warnings
+// logger.info() → for general information
+// logger.verbose() → more detailed info
+// logger.debug() → debug info
+// logger.silly() → very low priority logs
+// You don’t have to define these methods yourself — Winston adds them automatically.
 
 const logger = winston.createLogger({
   level: envConfig.logLevel,

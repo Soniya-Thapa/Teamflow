@@ -1,9 +1,13 @@
+
 import app from './app';
 import logger from '@/utils/logger';
 import prisma from '@/config/database';
 import redis from '@/config/redis';
-
 import { envConfig } from './config/env.config';
+import { setupPrismaTenantMiddleware } from './middleware/tenant.middleware';
+
+//Setup Prisma tenant middleware
+setupPrismaTenantMiddleware();
 
 const PORT = envConfig.portNumber;
 

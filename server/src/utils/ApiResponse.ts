@@ -1,8 +1,8 @@
+
 import type { Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 
 //Standardized API Response utility
-
 class ApiResponse {
   static success(res: Response, data: any, message = 'Success', statusCode = StatusCodes.OK) {
     return res.status(statusCode).json({
