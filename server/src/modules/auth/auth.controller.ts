@@ -3,11 +3,11 @@ import { Request, Response } from 'express';
 import { BaseController } from "@/common/BaseController";
 import authService from './auth.service';
 
-//                    AUTHENTICATION CONTROLLER
+//-----------------------------AUTHENTICATION CONTROLLER-----------------------------
 
 class AuthController extends BaseController {
 
-  //                    REGISTER NEW USER
+  //----------------------REGISTER NEW USER-----------------------------
 
   //POST /api/v1/auth/register
   //register is: a controller method / a function / used as a route handler
@@ -25,7 +25,7 @@ class AuthController extends BaseController {
     return this.sendCreated(res, result, "Registration Successful");
   });
 
-  //                    LOGIN USER
+  //-----------------------------LOGIN USER-----------------------------
 
   // POST /api/v1/auth/login
   login = this.asyncHandler(async (req: Request, res: Response) => {
@@ -37,7 +37,7 @@ class AuthController extends BaseController {
     return this.sendSuccess(res, result, "Login Successful.");
   });
 
-  //                    REFRESH ACCESS TOKEN
+  //-----------------------------REFRESH ACCESS TOKEN-----------------------------
 
   //POST /api/v1/auth/refresh
   refreshToken = this.asyncHandler(async (req: Request, res: Response) => {
@@ -49,7 +49,7 @@ class AuthController extends BaseController {
     return this.sendSuccess(res, tokens, "Token Refreshed Successfully.");
   })
 
-  //                    LOGOUT USER
+  //-----------------------------LOGOUT USER-----------------------------
 
   //POST /api/v1/auth/logout
   logout = this.asyncHandler(async (req: Request, res: Response) => {
@@ -65,7 +65,7 @@ class AuthController extends BaseController {
     return this.sendSuccess(res, null, "Logout Successful.");
   });
 
-  //                    GET PROFILE
+  //-----------------------------GET PROFILE-----------------------------
 
   //GET /api/v1/auth/me
   getProfile = this.asyncHandler(async (req: Request, res: Response) => {
@@ -77,7 +77,7 @@ class AuthController extends BaseController {
     return this.sendSuccess(res, user);
   });
 
-  //                    CHANGE PASSWORD 
+  //-----------------------------CHANGE PASSWORD-----------------------------
 
   //POST /api/v1/auth/change-password
   changePassword = this.asyncHandler(async (req: Request, res: Response) => {
@@ -91,7 +91,7 @@ class AuthController extends BaseController {
     return this.sendSuccess(res, result, "Password Changed Successfully");
   });
 
-  //                    REQUEST PASSWORD RESET
+  //-----------------------------REQUEST PASSWORD RESET-----------------------------
 
   // POST /api/v1/auth/forgot-password
   forgotPassword = this.asyncHandler(async (req: Request, res: Response) => {
@@ -102,7 +102,7 @@ class AuthController extends BaseController {
     return this.sendSuccess(res, result, 'Password reset request processed.');
   });
 
-  //                    RESET PASSWORD
+  //-----------------------------RESET PASSWORD-----------------------------
 
   // POST /api/v1/auth/reset-password
   resetPassword = this.asyncHandler(async (req: Request, res: Response) => {

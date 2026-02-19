@@ -78,6 +78,7 @@ model Organization {
   maxProjects Int                @default(3)
   maxStorage  BigInt             @default(1073741824) // 1GB in bytes
   ownerId     String
+  deletedAt   DateTime?          //(soft delete)
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 

@@ -409,6 +409,187 @@ All errors follow this format:
   "message": "Error description"
 }
 ```
+---
+
+### Organization Endpoints
+
+> All organization endpoints require `Authorization: Bearer <accessToken>` header.
+
+---
+
+#### GET `/organizations` 🔒
+Get all organizations the authenticated user belongs to. Supports pagination.
+
+**Query Params:**
+| Param   | Type   | Default | Description    |
+|---------|--------|---------|----------------|
+| `page`  | number | 1       | Page number    |
+| `limit` | number | 10      | Items per page |
+
+**Response: 200 OK**
+```json
+{
+  "success": true,
+  "message": "Organizations retrieved successfully",
+  "data": {
+    "data": [
+      {
+        "id": "uuid",
+        "name": "Acme Corp",
+        "slug": "acme-corp",
+        "logo": null,
+        "plan": "FREE",
+        "status": "ACTIVE",
+        "ownerId": "uuid",
+        "owner": {
+          "id": "uuid",
+          "email": "soniya@example.com",
+          "firstName": "Soniya",
+          "lastName": "Thapa"
+        },
+        "members": [{ "role": "OWNER", "status": "ACTIVE", "joinedAt": "..." }],
+        "_count": { "members": 1, "projects": 0, "tasks": 0 },
+        "createdAt": "2026-02-19T..."
+      }
+    ],
+    "meta": {
+      "page": 1,
+      "limit": 10,
+      "total": 1,
+      "totalPages": 1,
+      "hasNext": false,
+      "hasPrev": false
+    }
+  }
+}
+```
+
+---
+
+#### POST `/organizations` 🔒
+Create a new organization. The authenticated user automatically becomes the OWNER and is added as an active member.
+
+**Request Body:**
+```json
+{
+  "name": "Acme Corp",
+  "slug": "acme-corp",
+  "logo": "https://example.com/logo.png"
+}
+```
+
+**Slug Rules:**
+- Minimum 3 characters, maximum 50
+- Lowercase letters, numbers, and hyphens only
+- Must be unique across all organizations
+- Cannot be changed after creation
+
+**Response: 201 Created**
+```json
+{
+  "success": true,
+  "message": "Organization created successfully",
+  "data": {
+    "id": "uuid",
+    "name": "Acme Corp",
+    "slug": "acme-corp",
+    "plan": "FREE",
+    "status": "ACTIVE",
+    "maxUsers": 5,
+    "maxProjects": 3,
+    "maxStorage": "1073741824",
+    "ownerId": "uuid",
+    "createdAt": "2026-02-19T..."
+  }
+}
+```
+
+---
+
+#### GET `/organizations/:id` 🔒
+Get a single organization by ID. User must be an active member of the organization.
+
+**Response: 200 OK**
+```json
+{
+  "success": true,
+  "message": "Organization retrieved successfully",
+  "data": {
+    "id": "uuid",
+    "name": "Acme Corp",
+    "slug": "acme-corp",
+    "plan": "FREE",
+    "status": "ACTIVE",
+    "owner": { ... },
+    "_count": {
+      "members": 1,
+      "projects": 0,
+      "tasks": 0
+    }
+  }
+}
+```
+
+**Errors:**
+| Status | Reason                       |
+|--------|------------------------------|
+| 404    | Organization not found       |
+| 403    | User is not an active member |
+
+---
+
+#### PATCH `/organizations/:id` 🔒
+Update organization name or logo. Requires **OWNER** or **ADMIN** role.
+
+> Slug is intentionally not updatable — it is a permanent identifier.
+
+**Request Body (all fields optional, at least one required):**
+```json
+{
+  "name": "Acme Corporation",
+  "logo": "https://example.com/new-logo.png"
+}
+```
+
+**To remove logo, send:**
+```json
+{
+  "logo": null
+}
+```
+
+**Errors:**
+| Status | Reason                     |
+|--------|----------------------------|
+| 400    | No fields provided         |
+| 403    | User is not OWNER or ADMIN |
+| 404    | Organization not found     |
+
+---
+
+#### DELETE `/organizations/:id` 🔒
+Soft deletes an organization by setting status to `CANCELED`. Requires **OWNER** role only.
+
+> Data is never permanently deleted — soft delete preserves audit history and allows recovery.
+
+**Response: 200 OK**
+```json
+{
+  "success": true,
+  "message": "Organization deleted successfully",
+  "data": {
+    "message": "Organization deleted successfully"
+  }
+}
+```
+
+**Errors:**
+| Status | Reason                 |
+|--------|------------------------|
+| 403    | User is not the OWNER  |
+| 404    | Organization not found |
+
+## Status Code
 
 | Status Code | Meaning                                                       |
 |-------------|---------------------------------------------------------------|
@@ -467,7 +648,7 @@ All errors follow this format:
 | 3   | Express app structure, error handling, logging, middleware                | ✅ Done |
 | 4   | JWT authentication, registration, login, middleware                       | ✅ Done |
 | 5   | Refresh token rotation, password reset, rate limiting                     | ✅ Done |
-| 6   | Organization/tenant management                                            | 🔄 Next |
+| 6   | Organization/tenant management (CRUD, soft delete, status)                | ✅ Done |
 
 ---
 

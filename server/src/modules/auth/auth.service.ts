@@ -4,11 +4,11 @@ import ApiError from "@/utils/ApiError";
 import jwtUtil from "@/utils/jwt.util";
 import passwordUtil from "@/utils/password.util";
 
-//                    AUTHENTICATION SERVICE
+//-----------------------------AUTHENTICATION SERVICE-----------------------------
 
 class AuthService extends BaseService {
 
-  //                    GENERATE ACCESS AND REFRESH TOKENS 
+  //-----------------------------GENERATE ACCESS AND REFRESH TOKENS -----------------------------
 
   private async generateTokens(userId: string, email: string) {
 
@@ -47,7 +47,7 @@ class AuthService extends BaseService {
     };
   }
 
-  //                    REGISTER NEW USER
+  //-----------------------------REGISTER NEW USER-----------------------------
 
   async register(data: {
     firstName: string,
@@ -102,7 +102,7 @@ class AuthService extends BaseService {
     };
   }
 
-  //                    LOGIN USER
+  //-----------------------------LOGIN USER-----------------------------
 
   async login(email: string, password: string) {
 
@@ -154,7 +154,7 @@ class AuthService extends BaseService {
     };
   }
 
-  //                    REFRESH ACCESS TOKEN
+  //-----------------------------REFRESH ACCESS TOKEN-----------------------------
 
   async refreshToken(refreshToken: string) {
 
@@ -201,7 +201,7 @@ class AuthService extends BaseService {
     return tokens;
   }
 
-  //                    LOGOUT USER
+  //-----------------------------LOGOUT USER-----------------------------
 
   // The refreshtoken is optional because : 
   // User is logged out only from that device
@@ -232,7 +232,7 @@ class AuthService extends BaseService {
     this.log('User logged out successfully', { userId });
   }
 
-  //                    GET USER PROFILE
+  //-----------------------------GET USER PROFILE-----------------------------
 
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
@@ -261,7 +261,7 @@ class AuthService extends BaseService {
     };
   }
 
-  //                    CHANGE PASSWORD 
+  //-----------------------------CHANGE PASSWORD -----------------------------
 
   async changePassword(userId: string, currentPassword: string, newPassword: string) {
 
@@ -315,7 +315,7 @@ class AuthService extends BaseService {
     return { message: 'Password changed successfully' };
   }
 
-  //                    REQUEST PASSWORD RESET
+  //-----------------------------REQUEST PASSWORD RESET-----------------------------
 
   async requestPasswordReset(email: string) {
     this.log("Password Reset Requested", { email });
@@ -365,7 +365,7 @@ class AuthService extends BaseService {
     };
   }
 
-  //                    RESET PASSWORD
+  //-----------------------------RESET PASSWORD-----------------------------
 
   async resetPassword(rawToken: string, newPassword: string) {
     this.log('Password reset attempt');

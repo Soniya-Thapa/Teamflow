@@ -11,6 +11,7 @@ import { envConfig } from './config/env.config';
 
 // Import routes
 import authRoutes from '@/modules/auth/auth.routes';
+import organizationRoutes from '@/modules/organizations/organization.routes';
 
 const app: Application = express();
 
@@ -38,6 +39,14 @@ app.use(
 
 app.use(express.json({ limit: '10mb' })); //If the request body is JSON → convert it into a JavaScript object → put it inside req.body. ❗ It only works for request (req), not response (res).
 
+// Fix BigInt JSON serialization
+// BigInt is used for maxStorage (bytes) — JavaScript's JSON.stringify
+// doesn't support BigInt natively, so we convert it to string
+
+(BigInt.prototype as any).toJSON = function () {
+  return this.toString();
+};
+
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Compression
@@ -55,7 +64,7 @@ if (envConfig.nodeEnv === 'development') {
         write: (message: string) => logger.info(message.trim()),
       },
     }),
-  );
+  );organizationRoutes
 }
 
 // Health check endpoint: Simple route to confirm server is alive.
@@ -84,7 +93,7 @@ app.get(`${API_PREFIX}`, (req: Request, res: Response) => {
 
 // Routes will be mounted here
 app.use(`${API_PREFIX}/auth`, authRoutes);
-// app.use(`${API_PREFIX}/organizations`, organizationRoutes);
+app.use(`${API_PREFIX}/organizations`, organizationRoutes);
 // etc.
 
 // 404 handler - must be after all routes
