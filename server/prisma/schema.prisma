@@ -78,6 +78,7 @@ model Organization {
   maxProjects Int                @default(3)
   maxStorage  BigInt             @default(1073741824) // 1GB in bytes
   ownerId     String
+  suspendedBy String?            // 'OWNER' | 'SUPERADMIN'
   deletedAt   DateTime?          //(soft delete)
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
@@ -92,6 +93,8 @@ model Organization {
   activityLogs  ActivityLog[]
   notifications Notification[]
   attachments   Attachment[]
+  settings      OrganizationSettings?
+  usage         OrganizationUsage?
 
   @@index([slug])
   @@index([status])
@@ -107,6 +110,7 @@ model User {
   lastName        String
   avatar          String?
   isEmailVerified Boolean   @default(false)
+  isSuperAdmin    Boolean   @default(false)  
   lastLoginAt     DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -152,6 +156,53 @@ model OrganizationMember {
   @@index([organizationId])
   @@index([status])
   @@map("organization_members")
+}
+
+// Organization Settings (branding + config per org)
+model OrganizationSettings {
+  id              String   @id @default(uuid())
+  organizationId  String   @unique
+
+  // Branding
+  primaryColor    String?  @default("#6366f1")  // Default indigo
+  accentColor     String?  @default("#8b5cf6")
+  
+  // Onboarding
+  isOnboarded         Boolean  @default(false)
+  onboardingStep      Int      @default(0)
+  
+  // Features (can be toggled per org)
+  isInviteOnly        Boolean  @default(false)
+  allowGuestAccess    Boolean  @default(true)
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("organization_settings")
+}
+
+// Usage Tracking (current usage vs plan limits)
+model OrganizationUsage {
+  id              String   @id @default(uuid())
+  organizationId  String   @unique
+
+  // Current usage counts (updated on each action)
+  currentUsers    Int      @default(0)
+  currentProjects Int      @default(0)
+  currentStorage  BigInt   @default(0)  // bytes used
+
+  // Tracking periods
+  lastCalculatedAt DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("organization_usage")
 }
 
 model Team {

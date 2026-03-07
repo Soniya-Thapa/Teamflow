@@ -15,13 +15,13 @@ import { BaseService } from "@/common/BaseService";
 import ApiError from "@/utils/ApiError";
 import { OrganizationStatus } from "@prisma/client";
 
-//-----------------------------ORGANIZATION SERVICE-----------------------------
+//-----------------------------ORGANIZATION SERVICE---------------------------------------------------------------------------------------
 
 // Handles all business logic for organizations
 
 class OrganizationService extends BaseService {
 
-  //-----------------------------PRIVATE HELPERS-----------------------------
+  //-----------------------------PRIVATE HELPERS---------------------------------------------------------------------------------------
 
   // Verify user is an active member of an organization.
   // Reused across multiple methods to avoid duplication.
@@ -60,10 +60,10 @@ class OrganizationService extends BaseService {
     return member;
   }
 
-  //-----------------------------CREATE ORGANIZATION-----------------------------
+  //-----------------------------CREATE ORGANIZATION---------------------------------------------------------------------------------------
 
   // Create a new organization and add creator as OWNER member.
-  
+
   // @param userId - ID of the user creating the org(becomes OWNER)
   // @param data - Organization data(name, slug, logo)
   // @throws 409 - If slug is already taken
@@ -131,7 +131,7 @@ class OrganizationService extends BaseService {
     return organization;
   }
 
-  //-----------------------------GET ORGANIZATION BY ID (SINGLE)-----------------------------
+  //-----------------------------GET ORGANIZATION BY ID (SINGLE)---------------------------------------------------------------------------------------
 
   async getOrganizationById(id: string, userId: string) {
     const organization = await this.prisma.organization.findUnique({
@@ -168,7 +168,7 @@ class OrganizationService extends BaseService {
     return organization;
   }
 
-  //-----------------------------GET ORGANIZATION AS PER USER-----------------------------
+  //-----------------------------GET ORGANIZATION AS PER USER---------------------------------------------------------------------------------------
 
   // Get all organizations a user actively belongs to.
   // Returns paginated results with user's role in each org.
@@ -252,7 +252,7 @@ class OrganizationService extends BaseService {
 
   }
 
-  //-----------------------------UPDATE ORGANIZATION-----------------------------
+  //-----------------------------UPDATE ORGANIZATION---------------------------------------------------------------------------------------
 
   // Update organization name and / or logo.
   // Only OWNER or ADMIN can update.
@@ -284,8 +284,8 @@ class OrganizationService extends BaseService {
 
     // Verify org exists before role check
     const organization = await this.prisma.organization.findUnique({
-      where: { 
-        id 
+      where: {
+        id
       },
     });
 
@@ -318,7 +318,7 @@ class OrganizationService extends BaseService {
     return updated;
   }
 
-  //-----------------------------DELETE ORGANIZATION (soft delete)-----------------------------
+  //-----------------------------DELETE ORGANIZATION (soft delete)---------------------------------------------------------------------------------------
 
   // Soft delete an organization by setting status to CANCELED.
   // The record is never removed from the database.
@@ -339,8 +339,8 @@ class OrganizationService extends BaseService {
     this.log('Soft deleting organization', { organizationId: id, userId });
 
     const organization = await this.prisma.organization.findUnique({
-      where: { 
-        id 
+      where: {
+        id
       },
     });
 
@@ -367,6 +367,332 @@ class OrganizationService extends BaseService {
     this.log('Organization soft deleted', { organizationId: id });
 
     return { message: 'Organization deleted successfully' };
+  }
+
+  //----------------------------- GET OR CREATE SETTINGS ---------------------------------------------------------------------------------------
+
+  // This function returns the settings of an organization.
+  // But it also ensures:
+  // If the settings do not exist, create them automatically.
+  // So it guarantees:
+  // ✅ Every organization always has settings.
+
+  // WHY UPSERT?
+  // Settings are created lazily — we don't create them at org creation to keep the creation transaction simple. First time settings are requested, we create them with defaults automatically.
+
+  // @param organizationId - Organization UUID
+  // @param userId         - Requesting user's ID
+  // @throws 403           - If user is not an active member
+
+  async getOrganizationSettings(organizationId: string, userId: string) {
+    this.log('Getting organization settings', { organizationId });
+
+    await this.verifyActiveMember(userId, organizationId);
+
+    // upsert: get if exists, create with defaults if not 
+    // upsert = UPDATE + INSERT
+
+    // What upsert requires ???
+    // The structure of upsert always requires three things:
+    // prisma.model.upsert({
+    //   where: {...},
+    //   update: {...},
+    //   create: {...}
+    // })
+    // Field	Purpose:
+    // where	Find the record
+    // update	What to do if record exists
+    // create	What to do if record does not exist
+    // So update is mandatory. Prisma will give an error if you remove it.
+
+    // Settings do NOT exist:
+    // Example database:
+
+    // organizationId   	primaryColor
+    // (no record)	
+
+    // Then Prisma executes:
+    // create: {
+    //   organizationId
+    // }
+    // So a new row is created:
+
+    // organizationId   	primaryColor    	allowGuestAccess
+    // org123           	default	          default
+
+    // The other fields get default values from the Prisma schema.
+
+    const settings = await this.prisma.organizationSettings.upsert({
+      where: {
+        organizationId
+      },
+      update: {},  // No update needed, just fetch
+      create: {
+        organizationId,
+      },
+    });
+
+    return settings;
+  }
+
+  //----------------------------- UPDATE SETTINGS ---------------------------------------------------------------------------------------
+
+  // Update organization branding and feature settings.
+  // Only OWNER or ADMIN can update settings.
+
+  // @param organizationId - Organization UUID
+  // @param userId         - Requesting user's ID
+  // @param data           - Settings fields to update
+  // @throws 403           - If user is not OWNER or ADMIN
+
+  async updateOrganizationSettings(organizationId: string, userId: string, data: {
+    primaryColor?: string;
+    accentColor?: string;
+    isInviteOnly?: boolean;
+    allowGuestAccess?: boolean;
+  },
+  ) {
+    this.log('Updating organization settings', { organizationId });
+
+    await this.verifyRole(userId, organizationId, ['OWNER', 'ADMIN']);
+
+    // upsert: create settings if they don't exist yet, then update
+    const settings = await this.prisma.organizationSettings.upsert({
+      where: {
+        organizationId
+      },
+      update: data,
+      create: {
+        organizationId,
+        ...data,
+      },
+    });
+
+    this.log('Organization settings updated', { organizationId });
+
+    return settings;
+  }
+
+  //----------------------------- UPDATE ONBOARDING ---------------------------------------------------------------------------------------
+
+  //Onboarding usually means: The setup steps a new organization must complete when starting the platform.
+
+  // Update organization onboarding progress.
+  // Called by frontend as user completes each setup step.
+
+  // Onboarding steps:
+  //   0 → Org created
+  //   1 → Profile completed
+  //   2 → First member invited
+  //   3 → First project created
+  //   4 → First task created
+  //   5 → Onboarding complete
+
+  // @param organizationId  - Organization UUID
+  // @param userId          - Requesting user's ID
+  // @param onboardingStep  - Current step number (0-5)
+  // @param isOnboarded     - Whether onboarding is fully complete
+  // @throws 403            - If user is not OWNER or ADMIN
+
+  async updateOnboarding(organizationId: string, userId: string, onboardingStep: number) {
+
+    this.log('Updating onboarding progress', { organizationId, onboardingStep });
+
+    await this.verifyRole(userId, organizationId, ['OWNER', 'ADMIN']);
+
+    // Always calculate isOnboarded from the step — never trust the client
+    // Only mark as onboarded when step reaches 5
+    const isOnboarded = onboardingStep >= 5;
+
+    const settings = await this.prisma.organizationSettings.upsert({
+      where: {
+        organizationId
+      },
+      update: {
+        onboardingStep,
+        isOnboarded,
+      },
+      create: {
+        organizationId,
+        onboardingStep,
+        isOnboarded,
+      },
+    });
+
+    return settings;
+  }
+
+  //----------------------------- GET ORGANIZATION USAGE ---------------------------------------------------------------------------------------
+
+  // Get current usage stats for an organization.
+  // Recalculates live counts from DB for accuracy.
+
+  // WHY RECALCULATE INSTEAD OF JUST READING OrganizationUsage?
+  // Cached counts can drift if records are deleted or bulk operations run.
+  // For a usage dashboard, accuracy matters more than speed.
+  // The cached OrganizationUsage table is better used for billing/quotas
+  // where we want fast reads (Day 31).
+
+  // @param organizationId - Organization UUID
+  // @param userId         - Requesting user's ID
+  // @throws 403           - If user is not an active member
+
+  async getOrganizationUsage(organizationId: string, userId: string) {
+    this.log('Getting organization usage', { organizationId });
+
+    await this.verifyActiveMember(userId, organizationId);
+
+    // Get org with limits and live counts in one query
+    const [organization, currentUsers, currentProjects] = await Promise.all([
+      this.prisma.organization.findUnique({
+        where: {
+          id: organizationId
+        },
+        select: {
+          maxUsers: true,
+          maxProjects: true,
+          maxStorage: true,
+          plan: true,
+        },
+      }),
+      // Live count of active members
+      this.prisma.organizationMember.count({
+        where: {
+          organizationId,
+          status: 'ACTIVE',
+        },
+      }),
+      // Live count of active projects
+      this.prisma.project.count({
+        where: {
+          organizationId,
+          status: { not: 'ARCHIVED' },
+        },
+      }),
+    ]);
+
+    if (!organization) {
+      throw ApiError.notFound('Organization not found');
+    }
+
+    // Update cached usage record
+    await this.prisma.organizationUsage.upsert({
+      where: {
+        organizationId
+      },
+      update: {
+        currentUsers,
+        currentProjects,
+        lastCalculatedAt: new Date(),
+      },
+      create: {
+        organizationId,
+        currentUsers,
+        currentProjects,
+      },
+    });
+
+    return {
+      limits: {
+        maxUsers: organization.maxUsers,
+        maxProjects: organization.maxProjects,
+        maxStorage: organization.maxStorage.toString(),
+        plan: organization.plan,
+      },
+      current: {
+        users: currentUsers,
+        projects: currentProjects,
+      },
+      // Percentage used — useful for frontend progress bars
+      percentages: {
+        users: Math.round((currentUsers / organization.maxUsers) * 100),
+        projects: Math.round((currentProjects / organization.maxProjects) * 100),
+      },
+    };
+  }
+
+  //----------------------------- SUSPEND / REACTIVATE (org admin action) ---------------------------------------------------------------------------------------
+
+  // Suspend or reactivate an organization.
+  // Only OWNER can suspend their own org.
+
+  // WHY WOULD AN OWNER SUSPEND THEIR OWN ORG?
+  // Temporary shutdown (company holiday, maintenance, etc.)
+  // Members can't access the org while suspended.
+
+  // For platform-level suspension (payment failure etc.),
+  // use the super admin endpoint instead.
+
+  // @param organizationId - Organization UUID
+  // @param userId         - Requesting user's ID (must be OWNER)
+  // @param status         - ACTIVE or SUSPENDED
+  // @throws 403           - If user is not OWNER
+  // @throws 400           - If trying to set invalid status transition
+
+  async updateOrganizationStatus(organizationId: string, userId: string, status: 'ACTIVE' | 'SUSPENDED') {
+    this.log('Updating organization status', { organizationId, status });
+
+    const organization = await this.prisma.organization.findUnique({
+      where: {
+        id: organizationId
+      },
+    });
+
+    if (!organization) {
+      throw ApiError.notFound('Organization not found');
+    }
+
+    // Only OWNER can suspend/reactivate their own org
+    if (organization.ownerId !== userId) {
+      throw ApiError.forbidden(
+        'Only the organization owner can suspend or reactivate the organization',
+      );
+    }
+
+    // Prevent suspending an already suspended org or activating an active one
+    if (organization.status === status) {
+      throw ApiError.badRequest(
+        `Organization is already ${status.toLowerCase()}`,
+      );
+    }
+
+    // CANCELED orgs cannot be reactivated — they are permanently closed
+    if (organization.status === 'CANCELED') {
+      throw ApiError.badRequest(
+        'Canceled organizations cannot be reactivated. Please create a new organization.',
+      );
+    }
+
+    // ← KEY CHECK: if suspended by SUPERADMIN, owner cannot reactivate
+    if (
+      status === 'ACTIVE' &&
+      organization.status === 'SUSPENDED' &&
+      organization.suspendedBy === 'SUPERADMIN'
+    ) {
+      throw ApiError.forbidden(
+        'This organization was suspended by the platform administrator. Please contact support to reactivate.',
+      );
+    }
+    const updated = await this.prisma.organization.update({
+      where: {
+        id: organizationId
+      },
+      data: {
+        status,
+        // Track who suspended — clear it on reactivation
+        suspendedBy: status === 'SUSPENDED' ? 'OWNER' : null,
+      },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        updatedAt: true,
+      },
+    });
+
+    this.log('Organization status updated', { organizationId, status });
+
+    return updated;
   }
 }
 

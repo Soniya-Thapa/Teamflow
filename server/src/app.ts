@@ -12,6 +12,7 @@ import { envConfig } from './config/env.config';
 // Import routes
 import authRoutes from '@/modules/auth/auth.routes';
 import organizationRoutes from '@/modules/organizations/organization.routes';
+import adminRoutes from '@/modules/admin/admin.routes';
 
 const app: Application = express();
 
@@ -94,7 +95,8 @@ app.get(`${API_PREFIX}`, (req: Request, res: Response) => {
 // Routes will be mounted here
 app.use(`${API_PREFIX}/auth`, authRoutes);
 app.use(`${API_PREFIX}/organizations`, organizationRoutes);
-// etc.
+app.use(`${API_PREFIX}/admin`, adminRoutes);
+
 
 // 404 handler - must be after all routes
 app.use(notFoundHandler);

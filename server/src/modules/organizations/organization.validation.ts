@@ -68,12 +68,12 @@ export const updateOrganizationSchema = z.object({
 });
 
 // GET / DELETE ORGANIZATION
-
-// Validates GET /organizations/:id
-// Validates DELETE /organizations/:id
 // Only needs a valid UUID in params
 
+// Validates GET /organizations/:id
 export const getOrganizationSchema = idParamSchema;
+
+// Validates DELETE /organizations/:id
 export const deleteOrganizationSchema = idParamSchema;
 
 // LIST ORGANIZATIONS
@@ -82,3 +82,106 @@ export const deleteOrganizationSchema = idParamSchema;
 // Supports pagination: ? page = 1 & limit=10
 
 export const listOrganizationsSchema = paginationSchema;
+
+// PATCH /organizations/:id/settings
+// Update organization branding and feature settings
+
+export const updateOrganizationSettingsSchema = z.object({
+  params: z.object({
+    id: z.string().uuid('Invalid organization ID'),
+  }),
+  body: z.object({
+    primaryColor: z
+      .string()
+      .regex(/^#[0-9A-Fa-f]{6}$/, 'Must be a valid hex color e.g. #6366f1')
+      .optional(),
+    accentColor: z
+      .string()
+      .regex(/^#[0-9A-Fa-f]{6}$/, 'Must be a valid hex color e.g. #8b5cf6')
+      .optional(),
+    isInviteOnly: z.boolean().optional(),
+    allowGuestAccess: z.boolean().optional(),
+  }).refine(
+    (data) => Object.keys(data).length > 0,
+    { message: 'At least one field must be provided' },
+  ),
+});
+
+// PATCH /admin/organizations/:id/status
+// Super admin updates organization status
+//Why it exists: When a super admin suspends an organization, you want to know why it was suspended. It gets logged with Winston, not saved to the database.
+
+export const updateOrganizationStatusSchema = z.object({
+  params: z.object({
+    id: z.string().uuid('Invalid organization ID'),
+  }),
+  body: z.object({
+    status: z.enum(['ACTIVE', 'SUSPENDED', 'CANCELED'], {
+      message: 'Status must be ACTIVE, SUSPENDED, or CANCELED',
+    }),
+    reason: z
+      .string()
+      .min(1, 'Reason is required')
+      .max(500)
+      .optional(),
+  }),
+});
+
+// PATCH /organizations/:id/status
+// Owner suspends or reactivates their own organization
+// Note: CANCELED is excluded — owners use DELETE endpoint to cancel
+// Note: CANCELED is excluded — only super admin can set CANCELED status directly
+
+//The owner-level suspension endpoint needs a separate schema that only allows ACTIVE and SUSPENDED — owners cannot cancel their own org through the status endpoint (they use the delete endpoint for that).
+
+export const updateOwnerStatusSchema = z.object({
+  params: z.object({
+    id: z.string().uuid('Invalid organization ID'),
+  }),
+  body: z.object({
+    status: z.enum(['ACTIVE', 'SUSPENDED'], {
+      message: 'Status must be ACTIVE or SUSPENDED',
+    }),
+  }),
+});
+
+// PATCH /organizations/:id/onboarding
+// Update onboarding progress
+
+export const updateOnboardingSchema = z.object({
+  params: z.object({
+    id: z.string().uuid('Invalid organization ID'),
+  }),
+  body: z.object({
+    onboardingStep: z
+      .number()
+      .int()
+      .min(0)
+      .max(5),
+  }),
+});
+
+// GET /admin/organizations
+// Super admin lists all organizations with filters
+
+export const adminListOrganizationsSchema = z.object({
+  query: z.object({
+    page: z
+      .string()
+      .optional()
+      .transform(val => parseInt(val || '1')),
+    limit: z.
+      string()
+      .optional()
+      .transform(val => parseInt(val || '10')),
+    status: z
+      .enum(['ACTIVE', 'SUSPENDED', 'CANCELED'])
+      .optional(),
+    plan: z
+      .enum(['FREE', 'PRO', 'ENTERPRISE'])
+      .optional(),
+    search: z
+      .string()
+      .optional(),
+  }),
+});
