@@ -589,6 +589,213 @@ Soft deletes an organization by setting status to `CANCELED`. Requires **OWNER**
 | 403    | User is not the OWNER  |
 | 404    | Organization not found |
 
+---
+
+### Organization Settings Endpoints
+
+> Requires `Authorization: Bearer <accessToken>` header on all endpoints.
+
+---
+
+#### GET `/organizations/:id/settings` 🔒
+Get organization branding and feature settings. Created with defaults if accessed for the first time.
+
+**Response: 200 OK**
+```json
+{
+  "success": true,
+  "message": "Settings retrieved successfully",
+  "data": {
+    "id": "uuid",
+    "organizationId": "uuid",
+    "primaryColor": "#6366f1",
+    "accentColor": "#8b5cf6",
+    "isOnboarded": false,
+    "onboardingStep": 0,
+    "isInviteOnly": false,
+    "allowGuestAccess": true,
+    "createdAt": "2026-02-19T...",
+    "updatedAt": "2026-02-19T..."
+  }
+}
+```
+
+---
+
+#### PATCH `/organizations/:id/settings` 🔒
+Update organization branding and feature settings. Requires **OWNER** or **ADMIN** role.
+
+**Request Body (all fields optional, at least one required):**
+```json
+{
+  "primaryColor": "#6366f1",
+  "accentColor": "#8b5cf6",
+  "isInviteOnly": false,
+  "allowGuestAccess": true
+}
+```
+
+**Color format:** Must be a valid 6-digit hex color e.g. `#6366f1`
+
+**Errors:**
+| Status | Reason |
+|---|---|
+| 400 | No fields provided |
+| 400 | Invalid hex color format |
+| 403 | User is not OWNER or ADMIN |
+
+---
+
+#### GET `/organizations/:id/usage` 🔒
+Get current usage vs plan limits. Recalculates live counts for accuracy.
+
+**Response: 200 OK**
+```json
+{
+  "success": true,
+  "message": "Usage retrieved successfully",
+  "data": {
+    "limits": {
+      "maxUsers": 5,
+      "maxProjects": 3,
+      "maxStorage": "1073741824",
+      "plan": "FREE"
+    },
+    "current": {
+      "users": 2,
+      "projects": 1
+    },
+    "percentages": {
+      "users": 40,
+      "projects": 33
+    }
+  }
+}
+```
+
+---
+
+#### PATCH `/organizations/:id/status` 🔒
+Owner suspends or reactivates their organization. Requires **OWNER** role only.
+
+> If organization was suspended by a super admin, owner cannot reactivate it.
+> Contact platform support in that case.
+
+**Request Body:**
+```json
+{
+  "status": "SUSPENDED"
+}
+```
+
+**Allowed values:** `ACTIVE` or `SUSPENDED` only
+
+**Errors:**
+| Status | Reason |
+|---|---|
+| 400 | Organization already has that status |
+| 400 | Canceled organizations cannot be reactivated |
+| 403 | User is not the OWNER |
+| 403 | Suspended by platform admin — contact support |
+
+---
+
+#### PATCH `/organizations/:id/onboarding` 🔒
+Update onboarding progress. Called by frontend after each setup step is completed.
+
+> `isOnboarded` is calculated server-side — automatically set to `true` when step reaches 5.
+
+**Request Body:**
+```json
+{
+  "onboardingStep": 2
+}
+```
+
+**Onboarding Steps:**
+| Step | Meaning |
+|---|---|
+| 0 | Organization created |
+| 1 | Profile completed |
+| 2 | First member invited |
+| 3 | First project created |
+| 4 | First task created |
+| 5 | Onboarding complete |
+
+---
+
+### Admin Endpoints
+
+> These endpoints require **Super Admin** privileges (`isSuperAdmin: true` on user).
+> Non-admin users receive `404 Not Found` to hide the existence of the admin panel.
+
+---
+
+#### GET `/admin/stats` 🔒👑
+Get platform-wide statistics.
+
+**Response: 200 OK**
+```json
+{
+  "success": true,
+  "message": "Platform stats retrieved successfully",
+  "data": {
+    "organizations": {
+      "total": 10,
+      "active": 8,
+      "suspended": 1,
+      "canceled": 1
+    },
+    "users": { "total": 47 },
+    "projects": { "total": 123 },
+    "tasks": { "total": 891 },
+    "generatedAt": "2026-02-19T..."
+  }
+}
+```
+
+---
+
+#### GET `/admin/organizations` 🔒👑
+List all organizations across the platform with optional filters.
+
+**Query Params:**
+| Param | Type | Description |
+|---|---|---|
+| `page` | number | Page number (default: 1) |
+| `limit` | number | Items per page (default: 10) |
+| `status` | string | Filter by `ACTIVE`, `SUSPENDED`, `CANCELED` |
+| `plan` | string | Filter by `FREE`, `PRO`, `ENTERPRISE` |
+| `search` | string | Search by name or slug |
+
+**Example:**
+```
+GET /admin/organizations?status=SUSPENDED&page=1&limit=10
+```
+
+---
+
+#### PATCH `/admin/organizations/:id/status` 🔒👑
+Update any organization's status. Super admin can set `ACTIVE`, `SUSPENDED`, or `CANCELED`.
+
+> Unlike the owner endpoint, super admin can set `CANCELED` directly.
+> When super admin suspends an org, the owner cannot reactivate it independently.
+
+**Request Body:**
+```json
+{
+  "status": "SUSPENDED",
+  "reason": "Payment failure - invoice overdue 30 days"
+}
+```
+
+**Errors:**
+| Status | Reason |
+|---|---|
+| 403 | Not a super admin (returns 404) |
+| 404 | Organization not found |
+
+
 ## Status Code
 
 | Status Code | Meaning                                                       |
@@ -636,6 +843,9 @@ Soft deletes an organization by setting status to `CANCELED`. Requires **OWNER**
 - **Helmet.js** — secure HTTP headers
 - **Input Validation** — all inputs validated with Zod schemas
 - **Per-device Logout** — logout from one device or all devices
+- **Super Admin Protection** — Admin panel returns 404 to non-admin users to hide its existence
+- **Suspension Lock** — Organizations suspended by super admin cannot be reactivated by the owner
+- **Server-side Onboarding** — `isOnboarded` calculated server-side, never trusted from client
 
 ---
 
@@ -649,6 +859,7 @@ Soft deletes an organization by setting status to `CANCELED`. Requires **OWNER**
 | 4   | JWT authentication, registration, login, middleware                       | ✅ Done |
 | 5   | Refresh token rotation, password reset, rate limiting                     | ✅ Done |
 | 6   | Organization/tenant management (CRUD, soft delete, status)                | ✅ Done |
+| 7   | Tenant settings, usage tracking, suspension, super admin                  | ✅ Done |
 
 ---
 
