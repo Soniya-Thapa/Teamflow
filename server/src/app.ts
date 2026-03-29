@@ -13,6 +13,7 @@ import { envConfig } from './config/env.config';
 import authRoutes from '@/modules/auth/auth.routes';
 import organizationRoutes from '@/modules/organizations/organization.routes';
 import adminRoutes from '@/modules/admin/admin.routes';
+import roleRoutes from '@/modules/roles/role.routes';
 
 const app: Application = express();
 
@@ -96,6 +97,7 @@ app.get(`${API_PREFIX}`, (req: Request, res: Response) => {
 app.use(`${API_PREFIX}/auth`, authRoutes);
 app.use(`${API_PREFIX}/organizations`, organizationRoutes);
 app.use(`${API_PREFIX}/admin`, adminRoutes);
+app.use(`${API_PREFIX}/organizations/:id/roles`, roleRoutes);
 
 
 // 404 handler - must be after all routes

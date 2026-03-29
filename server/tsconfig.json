@@ -13,6 +13,7 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "moduleResolution": "node",
+    "types": ["node"],
     "declaration": true,
     "sourceMap": true,
     "noUnusedLocals": true,
@@ -50,7 +51,8 @@
     "files": true
   },
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "prisma/**/*"
   ],
   "exclude": [
     "node_modules",

@@ -92,7 +92,6 @@ export const requireRole = (...roles: string[]) => {
 
 export const setupPrismaTenantMiddleware = () => {
   prisma.$use(async (params, next) => {
-    // List of models that require tenant scoping
     const tenantModels = [
       'Organization',
       'OrganizationMember',
@@ -107,21 +106,23 @@ export const setupPrismaTenantMiddleware = () => {
       'Notification',
     ];
 
-    // Only apply to tenant-scoped models
     if (tenantModels.includes(params.model || '')) {
-      // For findMany, findFirst, count, etc.
-      if (params.action === 'findMany' || params.action === 'findFirst' || params.action === 'count') {
-        // Ensure organizationId filter exists
-        if (params.args.where && !params.args.where.organizationId) {
-          logger.warn(`Query on ${params.model} without organizationId filter`);
+      // Guard: params.args may be undefined for queries with no arguments
+      if (params.args) {
+        if (
+          params.action === 'findMany' ||
+          params.action === 'findFirst' ||
+          params.action === 'count'
+        ) {
+          if (params.args.where && !params.args.where.organizationId) {
+            logger.warn(`Query on ${params.model} without organizationId filter`);
+          }
         }
-      }
 
-      // For create, createMany
-      if (params.action === 'create' || params.action === 'createMany') {
-        // Log creation without organizationId
-        if (params.args.data && !params.args.data.organizationId) {
-          logger.warn(`Creating ${params.model} without organizationId`);
+        if (params.action === 'create' || params.action === 'createMany') {
+          if (params.args.data && !params.args.data.organizationId) {
+            logger.warn(`Creating ${params.model} without organizationId`);
+          }
         }
       }
     }

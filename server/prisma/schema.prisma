@@ -95,6 +95,8 @@ model Organization {
   attachments   Attachment[]
   settings      OrganizationSettings?
   usage         OrganizationUsage?
+  roles         Role[]  
+
 
   @@index([slug])
   @@index([status])
@@ -147,9 +149,11 @@ model OrganizationMember {
   updatedAt      DateTime     @updatedAt
 
   // Relations
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  inviter      User?        @relation("MemberInviter", fields: [invitedBy], references: [id], onDelete: SetNull)
+  user                User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inviter             User?        @relation("MemberInviter", fields: [invitedBy], references: [id], onDelete: SetNull)
+  roleAssignments     MemberRoleAssignment[]  
+
 
   @@unique([userId, organizationId])
   @@index([userId])
@@ -299,6 +303,82 @@ model Task {
   @@index([priority])
   @@index([dueDate])
   @@map("tasks")
+}
+
+// Permission represents a single action that can be performed
+// Format: resource:action e.g. "project:create", "task:delete"
+model Permission {
+  id          String   @id @default(uuid())
+  name        String   @unique  // e.g. "project:create"
+  displayName String           // e.g. "Create Projects"
+  description String?          // e.g. "Allows creating new projects"
+  resource    String           // e.g. "project"
+  action      String           // e.g. "create"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  rolePermissions RolePermission[]
+
+  @@index([resource])
+  @@index([name])
+  @@map("permissions")
+}
+
+// Role represents a named set of permissions within an organization
+model Role {
+  id             String   @id @default(uuid())
+  organizationId String?  // null = system default role (applies to all orgs)
+  name           String   // e.g. "ADMIN", "MANAGER"
+  displayName    String   // e.g. "Administrator"
+  description    String?
+  isSystem       Boolean  @default(false) // true = cannot be deleted
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization    Organization?    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  rolePermissions RolePermission[]
+  memberRoles     MemberRoleAssignment[]
+
+  @@unique([name])
+  @@index([organizationId])
+  @@map("roles")
+}
+
+// Junction table: which permissions belong to which role
+model RolePermission {
+  id           String   @id @default(uuid())
+  roleId       String
+  permissionId String
+  createdAt    DateTime @default(now())
+
+  // Relations
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+// Assigns a Role to a specific OrganizationMember
+// One member can have multiple roles
+model MemberRoleAssignment {
+  id       String @id @default(uuid())
+  memberId String
+  roleId   String
+  createdAt DateTime @default(now())
+
+  // Relations
+  member OrganizationMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  role   Role               @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, roleId])
+  @@index([memberId])
+  @@index([roleId])
+  @@map("member_role_assignments")
 }
 
 model Comment {
