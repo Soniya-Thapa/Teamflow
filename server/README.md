@@ -795,6 +795,250 @@ Update any organization's status. Super admin can set `ACTIVE`, `SUSPENDED`, or 
 | 403 | Not a super admin (returns 404) |
 | 404 | Organization not found |
 
+---
+
+### RBAC — Roles & Permissions Endpoints
+
+> All endpoints require `Authorization: Bearer <accessToken>` header.
+> Access control is enforced inside the service layer.
+
+---
+
+#### GET `/organizations/:id/roles` 🔒
+Get all roles available in an organization. Returns both system roles and custom org roles with their permissions.
+
+**Response: 200 OK**
+```json
+{
+  "success": true,
+  "message": "Roles retrieved successfully",
+  "data": {
+    "roles": [
+      {
+        "id": "uuid",
+        "name": "OWNER",
+        "displayName": "Owner",
+        "isSystem": true,
+        "organizationId": null,
+        "rolePermissions": [
+          {
+            "permission": {
+              "id": "uuid",
+              "name": "project:create",
+              "displayName": "Create Projects",
+              "resource": "project",
+              "action": "create"
+            }
+          }
+        ],
+        "_count": { "memberRoles": 1 }
+      }
+    ]
+  }
+}
+```
+
+---
+
+#### GET `/organizations/:id/roles/permissions` 🔒
+Get all available permissions grouped by resource. Used to build permission assignment UI.
+
+**Response: 200 OK**
+```json
+{
+  "success": true,
+  "message": "Permissions retrieved successfully",
+  "data": {
+    "permissions": [...],
+    "grouped": {
+      "organization": [
+        { "name": "organization:read", "displayName": "View Organization" },
+        { "name": "organization:update", "displayName": "Update Organization" }
+      ],
+      "project": [
+        { "name": "project:create", "displayName": "Create Projects" },
+        { "name": "project:read", "displayName": "View Projects" }
+      ]
+    }
+  }
+}
+```
+
+---
+
+#### POST `/organizations/:id/roles` 🔒
+Create a custom role for the organization. Requires **OWNER** or **ADMIN**.
+
+> System roles (OWNER, ADMIN, MEMBER, GUEST) are created by the seed script and cannot be duplicated.
+
+**Request Body:**
+```json
+{
+  "name": "TEAM_LEAD",
+  "displayName": "Team Lead",
+  "description": "Leads a team, manages tasks and members",
+  "permissionIds": ["uuid1", "uuid2", "uuid3"]
+}
+```
+
+**Name Rules:**
+- Uppercase letters and underscores only
+- Examples: `TEAM_LEAD`, `QA_ENGINEER`, `DEVELOPER`
+
+**Errors:**
+| Status | Reason |
+|---|---|
+| 400 | Name not uppercase or contains invalid characters |
+| 400 | No permissions provided |
+| 403 | User is not OWNER or ADMIN |
+| 409 | Role name already exists in this organization |
+
+---
+
+#### DELETE `/organizations/:id/roles/:roleId` 🔒
+Delete a custom role. Requires **OWNER** only.
+
+> System roles (OWNER, ADMIN, MEMBER, GUEST) cannot be deleted — they are required for the platform to function.
+
+**Errors:**
+| Status | Reason |
+|---|---|
+| 400 | Attempting to delete a system role |
+| 403 | User is not OWNER |
+| 404 | Role not found |
+
+---
+
+#### POST `/organizations/:id/roles/members/:memberId/roles` 🔒
+Assign a role to an organization member. Requires **OWNER** or **ADMIN**.
+
+> Custom roles add ON TOP of the member's base role (OWNER/ADMIN/MEMBER/GUEST).
+> A member's final permissions = base role permissions + all custom role permissions (merged).
+
+**Request Body:**
+```json
+{
+  "roleId": "uuid"
+}
+```
+
+**Errors:**
+| Status | Reason |
+|---|---|
+| 403 | User is not OWNER or ADMIN |
+| 404 | Member not found in organization |
+| 404 | Role not found |
+
+---
+
+#### DELETE `/organizations/:id/roles/members/:memberId/roles/:roleId` 🔒
+Remove a custom role assignment from a member. Requires **OWNER** or **ADMIN**.
+
+> Removing a custom role only removes the additional permissions.
+> The member's base role (OWNER/ADMIN/MEMBER/GUEST) is unaffected.
+
+---
+
+#### GET `/organizations/:id/roles/members/:memberId/permissions` 🔒
+Get all permissions a specific member has, with the source role for each permission.
+
+**Response: 200 OK**
+```json
+{
+  "success": true,
+  "message": "Member permissions retrieved successfully",
+  "data": {
+    "member": {
+      "id": "uuid",
+      "baseRole": "MEMBER"
+    },
+    "permissions": [
+      {
+        "name": "project:create",
+        "displayName": "Create Projects",
+        "resource": "project",
+        "action": "create",
+        "source": "system",
+        "roleName": "MEMBER"
+      },
+      {
+        "name": "member:manage",
+        "displayName": "Manage Members",
+        "resource": "member",
+        "action": "manage",
+        "source": "custom",
+        "roleName": "TEAM_LEAD"
+      }
+    ],
+    "totalPermissions": 2
+  }
+}
+```
+
+---
+
+## Permission System
+
+TeamFlow uses **Role-Based Access Control (RBAC)** with two layers:
+
+### Layer 1 — Base Role (MemberRole)
+Every organization member has one base role assigned at invitation:
+
+| Role | Description |
+|---|---|
+| `OWNER` | Full access to everything including delete and suspend |
+| `ADMIN` | Full access except delete org and suspend org |
+| `MEMBER` | Standard day-to-day work — create/update projects and tasks |
+| `GUEST` | Read-only access across all resources |
+
+### Layer 2 — Custom Roles
+OWNER and ADMIN can create custom roles with specific permissions and assign them to members. Custom role permissions are **merged** with the base role.
+```
+Member base role: MEMBER
+  → has: project:create, task:create, task:update ...
+
+Custom role assigned: TEAM_LEAD
+  → adds: member:manage, member:invite ...
+
+Final permissions = MEMBER permissions + TEAM_LEAD permissions
+```
+
+### Permission Format
+All permissions follow the `resource:action` format:
+
+| Resource        | Actions                                         |
+|-----------------|-------------------------------------------------|
+| `organization`  | `read`, `update`, `delete`, `suspend`           |
+| `member`        | `read`, `invite`, `remove`, `manage`            |
+| `team`          | `create`, `read`, `update`, `delete`            |
+| `project`       | `create`, `read`, `update`, `delete`            |
+| `task`          | `create`, `read`, `update`, `delete`, `assign`  |
+| `comment`       | `create`, `read`, `update`, `delete`            |
+| `attachment`    | `create`, `read`, `delete`                      |
+
+### Using Permissions in Routes
+```typescript
+// Check single permission
+router.post('/projects',
+  authenticate,
+  requireOrganization,
+  requirePermission('project:create'),
+  controller.createProject
+);
+
+// Check any of multiple permissions
+router.patch('/tasks/:id',
+  authenticate,
+  requireOrganization,
+  requireAnyPermission('task:update', 'task:manage'),
+  controller.updateTask
+);
+```
+
+### Permission Caching
+Permissions are cached in memory for **5 minutes** per member to avoid hitting the database on every request. Cache is automatically cleared when a member's roles are changed. In production, this cache moves to Redis.
+
+---
 
 ## Status Code
 
@@ -860,6 +1104,7 @@ Update any organization's status. Super admin can set `ACTIVE`, `SUSPENDED`, or 
 | 5   | Refresh token rotation, password reset, rate limiting                     | ✅ Done |
 | 6   | Organization/tenant management (CRUD, soft delete, status)                | ✅ Done |
 | 7   | Tenant settings, usage tracking, suspension, super admin                  | ✅ Done |
+| 8   | RBAC system — roles, permissions, middleware, seeding                     | ✅ Done |
 
 ---
 
