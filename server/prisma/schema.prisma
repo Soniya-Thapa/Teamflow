@@ -365,6 +365,7 @@ model RolePermission {
 
 // Assigns a Role to a specific OrganizationMember
 // One member can have multiple roles
+
 model MemberRoleAssignment {
   id       String @id @default(uuid())
   memberId String
@@ -427,7 +428,7 @@ model Invitation {
   organizationId String
   email          String
   role           MemberRole @default(MEMBER)
-  token          String     @unique
+  tokenHash      String     @unique
   invitedBy      String
   expiresAt      DateTime
   acceptedAt     DateTime?
@@ -440,7 +441,7 @@ model Invitation {
 
   @@index([organizationId])
   @@index([email])
-  @@index([token])
+  @@index([tokenHash])
   @@index([expiresAt])
   @@map("invitations")
 }

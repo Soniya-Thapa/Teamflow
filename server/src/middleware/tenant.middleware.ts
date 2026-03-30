@@ -17,10 +17,12 @@ export const requireOrganization = async (req: Request, res: Response, next: Nex
     }
 
     // Get organization ID from header, query, or body
-    const organizationId =
-      req.headers['x-organization-id'] as string ||
-      req.query.organizationId as string ||
-      req.body.organizationId;
+    // const organizationId =
+    //   req.headers['x-organization-id'] as string ||
+    //   req.query.organizationId as string ||
+    //   req.body.organizationId || req.params.id;
+
+    const organizationId = req.params.id;
 
     if (!organizationId) {
       throw ApiError.badRequest('Organization ID is required');
