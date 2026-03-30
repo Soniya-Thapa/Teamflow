@@ -619,7 +619,6 @@ Get organization branding and feature settings. Created with defaults if accesse
   }
 }
 ```
-
 ---
 
 #### PATCH `/organizations/:id/settings` 🔒
@@ -638,11 +637,11 @@ Update organization branding and feature settings. Requires **OWNER** or **ADMIN
 **Color format:** Must be a valid 6-digit hex color e.g. `#6366f1`
 
 **Errors:**
-| Status | Reason |
-|---|---|
-| 400 | No fields provided |
-| 400 | Invalid hex color format |
-| 403 | User is not OWNER or ADMIN |
+| Status | Reason                     |
+|--------|----------------------------|
+| 400    | No fields provided         |
+| 400    | Invalid hex color format   |
+| 403    | User is not OWNER or ADMIN |
 
 ---
 
@@ -691,12 +690,12 @@ Owner suspends or reactivates their organization. Requires **OWNER** role only.
 **Allowed values:** `ACTIVE` or `SUSPENDED` only
 
 **Errors:**
-| Status | Reason |
-|---|---|
-| 400 | Organization already has that status |
-| 400 | Canceled organizations cannot be reactivated |
-| 403 | User is not the OWNER |
-| 403 | Suspended by platform admin — contact support |
+| Status | Reason                                        |
+|--------|-----------------------------------------------|
+| 400    | Organization already has that status          |
+| 400    | Canceled organizations cannot be reactivated  |
+| 403    | User is not the OWNER                         |
+| 403    | Suspended by platform admin — contact support |
 
 ---
 
@@ -713,14 +712,14 @@ Update onboarding progress. Called by frontend after each setup step is complete
 ```
 
 **Onboarding Steps:**
-| Step | Meaning |
-|---|---|
-| 0 | Organization created |
-| 1 | Profile completed |
-| 2 | First member invited |
-| 3 | First project created |
-| 4 | First task created |
-| 5 | Onboarding complete |
+| Step | Meaning               |
+|------|-----------------------|
+| 0    | Organization created  |
+| 1    | Profile completed     |
+| 2    | First member invited  |
+| 3    | First project created |
+| 4    | First task created    |
+| 5    | Onboarding complete   |
 
 ---
 
@@ -760,13 +759,13 @@ Get platform-wide statistics.
 List all organizations across the platform with optional filters.
 
 **Query Params:**
-| Param | Type | Description |
-|---|---|---|
-| `page` | number | Page number (default: 1) |
-| `limit` | number | Items per page (default: 10) |
+| Param    | Type   | Description                                 |
+|----------|--------|---------------------------------------------|
+| `page`   | number | Page number (default: 1)                    |
+| `limit`  | number | Items per page (default: 10)                |
 | `status` | string | Filter by `ACTIVE`, `SUSPENDED`, `CANCELED` |
-| `plan` | string | Filter by `FREE`, `PRO`, `ENTERPRISE` |
-| `search` | string | Search by name or slug |
+| `plan`   | string | Filter by `FREE`, `PRO`, `ENTERPRISE`       |
+| `search` | string | Search by name or slug                      |
 
 **Example:**
 ```
@@ -790,10 +789,10 @@ Update any organization's status. Super admin can set `ACTIVE`, `SUSPENDED`, or 
 ```
 
 **Errors:**
-| Status | Reason |
-|---|---|
-| 403 | Not a super admin (returns 404) |
-| 404 | Organization not found |
+| Status | Reason                          |
+|--------|---------------------------------|
+| 403    | Not a super admin (returns 404) |
+| 404    | Organization not found          |
 
 ---
 
@@ -886,12 +885,12 @@ Create a custom role for the organization. Requires **OWNER** or **ADMIN**.
 - Examples: `TEAM_LEAD`, `QA_ENGINEER`, `DEVELOPER`
 
 **Errors:**
-| Status | Reason |
-|---|---|
-| 400 | Name not uppercase or contains invalid characters |
-| 400 | No permissions provided |
-| 403 | User is not OWNER or ADMIN |
-| 409 | Role name already exists in this organization |
+| Status | Reason                                            |
+|--------|---------------------------------------------------|
+| 400    | Name not uppercase or contains invalid characters |
+| 400    | No permissions provided                           |
+| 403    | User is not OWNER or ADMIN                        |
+| 409    | Role name already exists in this organization     |
 
 ---
 
@@ -901,11 +900,11 @@ Delete a custom role. Requires **OWNER** only.
 > System roles (OWNER, ADMIN, MEMBER, GUEST) cannot be deleted — they are required for the platform to function.
 
 **Errors:**
-| Status | Reason |
-|---|---|
-| 400 | Attempting to delete a system role |
-| 403 | User is not OWNER |
-| 404 | Role not found |
+| Status | Reason                             |
+|--------|------------------------------------|
+| 400    | Attempting to delete a system role |
+| 403    | User is not OWNER                  |
+| 404    | Role not found                     |
 
 ---
 
@@ -923,11 +922,11 @@ Assign a role to an organization member. Requires **OWNER** or **ADMIN**.
 ```
 
 **Errors:**
-| Status | Reason |
-|---|---|
-| 403 | User is not OWNER or ADMIN |
-| 404 | Member not found in organization |
-| 404 | Role not found |
+| Status | Reason                           |
+|--------|----------------------------------|
+| 403    | User is not OWNER or ADMIN       |
+| 404    | Member not found in organization |
+| 404    | Role not found                   |
 
 ---
 
@@ -974,6 +973,53 @@ Get all permissions a specific member has, with the source role for each permiss
   }
 }
 ```
+---
+
+### Authorization — Resource Access & Bulk Assignment
+
+> All endpoints require `Authorization: Bearer <accessToken>` header.
+
+---
+
+#### POST `/organizations/:id/roles/bulk-assign` 🔒
+Assign a role to multiple members at once. Requires **OWNER** or **ADMIN**.
+
+> Uses a database transaction — if any assignment fails, none are applied.
+> Duplicate assignments are silently skipped.
+> Maximum 50 members per request.
+
+**Request Body:**
+```json
+{
+  "memberIds": [
+    "member-uuid-1",
+    "member-uuid-2",
+    "member-uuid-3"
+  ],
+  "roleId": "role-uuid"
+}
+```
+
+**Response: 200 OK**
+```json
+{
+  "success": true,
+  "message": "Roles bulk assigned successfully",
+  "data": {
+    "message": "Role assigned to 3 members successfully",
+    "assignedCount": 3
+  }
+}
+```
+
+**Errors:**
+| Status | Reason                                        |
+|--------|-----------------------------------------------|
+| 400    | No member IDs provided                        |
+| 400    | More than 50 members in request               |
+| 400    | One or more members not found in organization |
+| 403    | User is not OWNER or ADMIN                    |
+| 404    | Role not found                                |
 
 ---
 
@@ -984,12 +1030,12 @@ TeamFlow uses **Role-Based Access Control (RBAC)** with two layers:
 ### Layer 1 — Base Role (MemberRole)
 Every organization member has one base role assigned at invitation:
 
-| Role | Description |
-|---|---|
-| `OWNER` | Full access to everything including delete and suspend |
-| `ADMIN` | Full access except delete org and suspend org |
+| Role     | Description                                                 |
+|----------|-------------------------------------------------------------|
+| `OWNER`  | Full access to everything including delete and suspend      |
+| `ADMIN`  | Full access except delete org and suspend org               |
 | `MEMBER` | Standard day-to-day work — create/update projects and tasks |
-| `GUEST` | Read-only access across all resources |
+| `GUEST`  | Read-only access across all resources                       |
 
 ### Layer 2 — Custom Roles
 OWNER and ADMIN can create custom roles with specific permissions and assign them to members. Custom role permissions are **merged** with the base role.
@@ -1038,6 +1084,75 @@ router.patch('/tasks/:id',
 ### Permission Caching
 Permissions are cached in memory for **5 minutes** per member to avoid hitting the database on every request. Cache is automatically cleared when a member's roles are changed. In production, this cache moves to Redis.
 
+---
+
+## Authorization Patterns
+
+TeamFlow uses a **layered authorization system**. Every protected route passes through multiple middleware checks in order:
+
+### The Middleware Chain
+```typescript
+router.patch('/:projectId',
+  authenticate,                         // Layer 1: Who are you?
+  requireOrganization,                  // Layer 2: Which org?
+  requirePermission('project:update'),  // Layer 3: Do you have permission?
+  requireProjectAccess('update'),       // Layer 4: Do you own this resource?
+  controller.updateProject              // Execute
+);
+```
+
+### Layer 1 — Authentication (`authenticate`)
+Verifies the JWT access token and attaches `req.userId` to the request.
+Rejects with `401` if token is missing, invalid, or expired.
+
+### Layer 2 — Organization Context (`requireOrganization`)
+Verifies the user is an active member of the organization specified in
+the `X-Organization-ID` header. Attaches `req.organizationId` and
+`req.memberRole` to the request. Rejects with `403` if not a member.
+
+### Layer 3 — Permission Check (`requirePermission`)
+Checks if the user's roles (base + custom) include the required permission.
+Uses an in-memory cache (5 min TTL) to avoid DB hits on every request.
+```typescript
+// Single permission
+requirePermission('project:create')
+
+// Any of multiple permissions
+requireAnyPermission('task:update', 'task:manage')
+```
+
+### Layer 4 — Resource Ownership (`requireProjectAccess`, `requireTaskAccess`, etc.)
+Checks if the user owns or has specific access to the requested resource.
+This prevents users from modifying resources that belong to others,
+even if they have the general permission.
+
+**Ownership Rules:**
+
+| Resource    | Read       | Update                            | Delete                 |
+|-------------|------------|-----------------------------------|------------------------|
+| Project     | Any member | Creator or OWNER/ADMIN            | Creator or OWNER/ADMIN |
+| Task        | Any member | Creator, Assignee, or OWNER/ADMIN | Creator or OWNER/ADMIN |
+| Task Status | Any member | Creator or Assignee only          |          —             |
+| Comment     | Any member | Author only                       | Author or OWNER/ADMIN  |
+| Team        | Any member | Team Leader or OWNER/ADMIN        | OWNER/ADMIN only       |
+
+### Why Four Layers?
+
+Each layer catches a different type of unauthorized access:
+```
+No token          → caught by authenticate
+Wrong org         → caught by requireOrganization
+Wrong role        → caught by requirePermission
+Wrong resource    → caught by requireProjectAccess
+```
+
+Without all four layers, these attacks are possible:
+```
+Attack 1: No token         → access without logging in
+Attack 2: Different org    → access another company's data
+Attack 3: Wrong role       → GUEST deleting projects
+Attack 4: Wrong resource   → MEMBER editing another member's tasks
+```
 ---
 
 ## Status Code
@@ -1105,7 +1220,7 @@ Permissions are cached in memory for **5 minutes** per member to avoid hitting t
 | 6   | Organization/tenant management (CRUD, soft delete, status)                | ✅ Done |
 | 7   | Tenant settings, usage tracking, suspension, super admin                  | ✅ Done |
 | 8   | RBAC system — roles, permissions, middleware, seeding                     | ✅ Done |
-
+| 9   | Resource-based authorization, ownership checks, bulk role assignment      | ✅ Done |
 ---
 
 ## Author

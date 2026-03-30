@@ -403,7 +403,9 @@ class RoleService extends BaseService {
   // Get all permissions a specific member has.
   // Useful for debugging and frontend permission-based UI rendering.
 
-  async getMemberPermissions(organizationId: string, userId: string, targetUserId: string,) {
+  async getMemberPermissions(organizationId: string, userId: string,
+    targetUserId: string //  // this is the OrganizationMember.id 
+  ) {
     // Verify requester is a member
     const requester = await this.prisma.organizationMember.findFirst({
       where: {
@@ -419,7 +421,7 @@ class RoleService extends BaseService {
 
     const targetMember = await this.prisma.organizationMember.findFirst({
       where: {
-        userId: targetUserId,
+        id: targetUserId,
         organizationId,
         status: 'ACTIVE'
       },
@@ -486,6 +488,116 @@ class RoleService extends BaseService {
       },
       permissions: Array.from(allPermissions.values()),
       totalPermissions: allPermissions.size,
+    };
+  }
+
+  // ─────────────────────────────────────────
+  // BULK ROLE ASSIGNMENT
+  // ─────────────────────────────────────────
+
+  /**
+   * Assign a role to multiple members at once.
+   * Useful for onboarding a whole team with the same role.
+   *
+   * WHY BULK?
+   * Assigning roles one by one for 20 members is 20 API calls.
+   * Bulk assignment does it in one transaction — faster and atomic.
+   * If one fails, none are assigned (all or nothing).
+   *
+   * @param organizationId - Organization UUID
+   * @param userId         - Requesting user's ID (must be OWNER/ADMIN)
+   * @param memberIds      - Array of OrganizationMember IDs
+   * @param roleId         - Role to assign to all members
+   * @throws 403           - If user is not OWNER or ADMIN
+   * @throws 404           - If role not found
+   */
+  async bulkAssignRole(organizationId: string,userId: string,memberIds: string[],roleId: string) {
+    this.log('Bulk assigning role', {organizationId,roleId,memberCount: memberIds.length});
+
+    // Verify requester is OWNER or ADMIN
+    const requester = await this.prisma.organizationMember.findFirst({
+      where: {
+        userId,
+        organizationId,
+        status: 'ACTIVE',
+        role: { in: ['OWNER', 'ADMIN'] },
+      },
+    });
+
+    if (!requester) {
+      throw ApiError.forbidden('Only OWNER or ADMIN can assign roles');
+    }
+
+    // Verify role exists and is accessible
+    const role = await this.prisma.role.findFirst({
+      where: {
+        id: roleId,
+        OR: [
+          { organizationId },
+          { isSystem: true, organizationId: null },
+        ],
+      },
+    });
+
+    if (!role) {
+      throw ApiError.notFound('Role not found');
+    }
+
+    // Verify all members belong to this org
+    const members = await this.prisma.organizationMember.findMany({
+      where: {
+        id: { 
+          in: memberIds 
+        },
+        organizationId,
+        status: 'ACTIVE',
+      },
+    });
+
+    if (members.length !== memberIds.length) {
+      throw ApiError.badRequest(
+        'One or more members not found in this organization',
+      );
+    }
+
+    // Bulk assign in transaction — all or nothing
+
+    // Why needed?
+
+    // Imagine:
+    // 10 members
+    // 5 inserted
+    // error happens
+
+    // Without transaction
+    // 5 members got role 
+    // 5 didn’t 
+    // inconsistent data 
+
+    // With transaction
+    // 0 members updated (rollback)
+    // clean + safe
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.memberRoleAssignment.createMany({
+        data: memberIds.map(memberId => ({
+          memberId,
+          roleId,
+        })),
+        skipDuplicates: true, // Skip if already assigned
+      });
+    });
+
+    // Clear permission cache for all affected members
+    members.forEach(member => {
+      clearPermissionCache(member.id, organizationId);
+    });
+
+    this.log('Bulk role assignment complete', {roleId,memberCount: members.length});
+
+    return {
+      message: `Role assigned to ${members.length} members successfully`,
+      assignedCount: members.length,
     };
   }
 }

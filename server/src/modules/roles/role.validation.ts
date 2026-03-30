@@ -1,6 +1,6 @@
 
-  // file : role.validation.ts
-  // description : Zod validation schemas for RBAC role endpoints
+// file : role.validation.ts
+// description : Zod validation schemas for RBAC role endpoints
 
 import { z } from 'zod';
 import { idParamSchema } from '@/common/validators';
@@ -74,6 +74,20 @@ export const deleteRoleSchema = z.object({
 export const getMemberPermissionsSchema = z.object({
   params: z.object({
     id: idSchema,
-    memberId:memberIdSchema,
+    memberId: memberIdSchema,
+  }),
+});
+
+// POST /organizations/:id/roles/bulk-assign
+export const bulkAssignRoleSchema = z.object({
+  params: z.object({
+    id: z.string().uuid('Invalid organization ID'),
+  }),
+  body: z.object({
+    memberIds: z
+      .array(idSchema)
+      .min(1, 'At least one member ID is required')
+      .max(50, 'Cannot bulk assign to more than 50 members at once'),
+    roleId: roleIdSchema,
   }),
 });

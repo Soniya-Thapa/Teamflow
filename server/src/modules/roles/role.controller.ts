@@ -94,17 +94,28 @@ class RoleController extends BaseController {
       const { id, memberId } = req.params;
       const userId = req.userId!;
 
-      const result = await roleService.getMemberPermissions(
-        id as string,
-        userId,
-        memberId as string,
-      );
+      const result = await roleService.getMemberPermissions(id as string, userId, memberId as string);
 
       return this.sendSuccess(
         res,
         result,
         'Member permissions retrieved successfully',
       );
+    },
+  );
+
+  //  POST /api/v1/organizations/:id/roles/bulk-assign
+  //  Assign a role to multiple members at once
+
+  bulkAssignRole = this.asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const userId = req.userId!;
+      const { memberIds, roleId } = req.body;
+
+      const result = await roleService.bulkAssignRole(id as string, userId, memberIds, roleId);
+
+      return this.sendSuccess(res, result, 'Roles bulk assigned successfully');
     },
   );
 }

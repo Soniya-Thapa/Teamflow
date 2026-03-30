@@ -246,7 +246,7 @@ class OrganizationService extends BaseService {
     ]);
 
     return {
-      data: organizations,
+      organizations,
       meta: this.buildPaginationMeta(page, limit, total),
     };
 
