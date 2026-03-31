@@ -1023,6 +1023,339 @@ Assign a role to multiple members at once. Requires **OWNER** or **ADMIN**.
 
 ---
 
+### Team Endpoints
+
+> All endpoints require `Authorization: Bearer <accessToken>` header.
+> All endpoints require `X-Organization-ID` header OR org ID is in the route path.
+
+---
+
+#### GET `/organizations/:id/teams` 🔒
+List all teams in an organization with pagination and optional search.
+Any active org member can list teams.
+
+**Query Params:**
+| Param | Type | Default | Description |
+|---|---|---|---|
+| `page` | number | 1 | Page number |
+| `limit` | number | 10 | Items per page |
+| `search` | string | — | Search by team name |
+
+**Response: 200 OK**
+```json
+{
+  "success": true,
+  "message": "Teams retrieved successfully",
+  "data": {
+    "teams": [
+      {
+        "id": "uuid",
+        "name": "Engineering",
+        "description": "Core engineering team",
+        "leaderId": "uuid",
+        "organizationId": "uuid",
+        "_count": { "members": 3, "projects": 2 },
+        "members": [
+          {
+            "role": "TEAM_LEAD",
+            "user": {
+              "id": "uuid",
+              "firstName": "Soniya",
+              "lastName": "Thapa",
+              "email": "soniya@example.com",
+              "avatar": null
+            }
+          }
+        ]
+      }
+    ],
+    "meta": {
+      "page": 1,
+      "limit": 10,
+      "total": 1,
+      "totalPages": 1,
+      "hasNext": false,
+      "hasPrev": false
+    }
+  }
+}
+```
+
+---
+
+#### POST `/organizations/:id/teams` 🔒
+Create a new team. Requires **OWNER** or **ADMIN** role.
+If `leaderId` is provided, the leader is automatically added as a `TEAM_LEAD` member.
+
+**Request Body:**
+```json
+{
+  "name": "Engineering",
+  "description": "Core engineering team",
+  "leaderId": "uuid"
+}
+```
+
+**Errors:**
+| Status | Reason |
+|---|---|
+| 403 | User is not OWNER or ADMIN |
+| 404 | leaderId not an active org member |
+
+---
+
+#### GET `/organizations/:id/teams/:teamId` 🔒
+Get a single team with full member list and associated projects.
+
+**Response includes:** team details, all members with user info, active projects, member count.
+
+---
+
+#### PATCH `/organizations/:id/teams/:teamId` 🔒
+Update team details. Team **LEAD** or org **OWNER/ADMIN** can update.
+
+**Request Body (all fields optional, at least one required):**
+```json
+{
+  "name": "Engineering Team",
+  "description": "Updated description",
+  "leaderId": "uuid"
+}
+```
+
+> Slug is not applicable to teams. Name can be updated freely.
+
+---
+
+#### DELETE `/organizations/:id/teams/:teamId` 🔒
+Delete a team. Requires **OWNER** or **ADMIN** role only.
+Team member records cascade delete automatically.
+Projects linked to the team have `teamId` set to `null`.
+
+---
+
+#### GET `/organizations/:id/teams/:teamId/members` 🔒
+List all members of a team with pagination.
+TEAM_LEAD appears first, then members ordered by join date.
+
+**Query Params:** `page`, `limit`
+
+---
+
+#### POST `/organizations/:id/teams/:teamId/members` 🔒
+Add an organization member to a team. Team **LEAD** or org **OWNER/ADMIN** only.
+
+> User must be an active org member before they can join a team.
+
+**Request Body:**
+```json
+{
+  "userId": "uuid",
+  "role": "MEMBER"
+}
+```
+
+**Allowed roles:** `TEAM_LEAD`, `MEMBER`
+
+**Errors:**
+| Status | Reason |
+|---|---|
+| 403 | Requester is not team lead or OWNER/ADMIN |
+| 404 | Target user not an active org member |
+| 409 | User already a team member |
+
+---
+
+#### PATCH `/organizations/:id/teams/:teamId/members/:memberId` 🔒
+Update a team member's role. Requires org **OWNER** or **ADMIN**.
+Promoting to `TEAM_LEAD` automatically updates `team.leaderId`.
+
+**Request Body:**
+```json
+{
+  "role": "TEAM_LEAD"
+}
+```
+
+---
+
+#### DELETE `/organizations/:id/teams/:teamId/members/:memberId` 🔒
+Remove a member from a team.
+
+**Who can remove:**
+- The member themselves (self-removal)
+- Team LEAD
+- Org OWNER or ADMIN
+
+> If the removed member was the team leader, `team.leaderId` is set to `null`.
+
+---
+
+### Invitation Endpoints
+
+---
+
+#### POST `/organizations/:id/invitations` 🔒
+Send an invitation to an email address. Requires **OWNER** or **ADMIN**.
+
+**Validates:**
+- Org has not reached `maxUsers` limit
+- Email is not already an active member
+- No pending invitation already exists for this email
+
+**Request Body:**
+```json
+{
+  "email": "jane@example.com",
+  "role": "MEMBER"
+}
+```
+
+**Allowed roles:** `ADMIN`, `MEMBER`, `GUEST` (cannot invite as OWNER)
+
+**Response: 201 Created**
+```json
+{
+  "success": true,
+  "message": "Invitation sent successfully",
+  "data": {
+    "invitation": {
+      "id": "uuid",
+      "email": "jane@example.com",
+      "role": "MEMBER",
+      "expiresAt": "2026-04-07T...",
+      "inviter": { "firstName": "Soniya", "lastName": "Thapa", "email": "soniya@example.com" },
+      "organization": { "id": "uuid", "name": "Acme Corp", "slug": "acme-corp" }
+    },
+    "devOnly_token": "abc123..."
+  }
+}
+```
+
+> ⚠️ `devOnly_token` is only returned in development for Postman testing.
+> On Day 12 this is removed and the token is sent via email instead.
+
+**Errors:**
+| Status | Reason |
+|---|---|
+| 400 | Organization is at maxUsers limit — upgrade plan |
+| 400 | Organization is suspended or canceled |
+| 403 | User is not OWNER or ADMIN |
+| 409 | Email is already an active member |
+| 409 | Pending invitation already exists for this email |
+
+---
+
+#### GET `/organizations/:id/invitations` 🔒
+List invitations for an organization. Requires **OWNER** or **ADMIN**.
+
+**Query Params:**
+| Param | Type | Default | Description |
+|---|---|---|---|
+| `page` | number | 1 | Page number |
+| `limit` | number | 10 | Items per page |
+| `status` | string | `pending` | Filter: `pending`, `accepted`, `all` |
+
+**Response includes computed `status` field:** `pending`, `accepted`, or `expired`
+
+---
+
+#### DELETE `/organizations/:id/invitations/:invitationId` 🔒
+Revoke a pending invitation. Requires **OWNER** or **ADMIN**.
+Cannot revoke an already accepted invitation.
+
+---
+
+#### POST `/organizations/:id/invitations/:invitationId/resend` 🔒
+Resend invitation with a fresh token. Requires **OWNER** or **ADMIN**.
+
+> Deletes the old invitation and creates a new one.
+> Only ONE valid token per email exists at any time.
+> Cannot resend an already accepted invitation.
+
+---
+
+#### GET `/invitations/:token` 🌐
+**Public endpoint — no authentication required.**
+Preview invitation details before accepting.
+Used by frontend to show "You've been invited to join X" page.
+
+**Response includes:**
+- Invitation details (email, role, expiry)
+- Organization info (name, slug, logo)
+- Inviter info
+- `hasAccount: boolean` — frontend shows login vs register form
+
+**Errors:**
+| Status | Reason |
+|---|---|
+| 400 | Token invalid or expired |
+| 400 | Invitation already accepted |
+
+---
+
+#### POST `/invitations/accept` 🌐
+**Public endpoint — no authentication required.**
+Accept an invitation. The invitation token authenticates the request.
+
+**Two scenarios:**
+
+**Scenario A — Existing user (already has account):**
+```json
+{
+  "token": "abc123..."
+}
+```
+
+**Scenario B — New user (no account yet):**
+```json
+{
+  "token": "abc123...",
+  "firstName": "Jane",
+  "lastName": "Doe",
+  "password": "Test@123456"
+}
+```
+
+**Response: 200 OK**
+```json
+{
+  "success": true,
+  "message": "Welcome to Acme Corp!",
+  "data": {
+    "user": {
+      "id": "uuid",
+      "email": "jane@example.com",
+      "firstName": "Jane",
+      "lastName": "Doe"
+    },
+    "organization": {
+      "id": "uuid",
+      "name": "Acme Corp",
+      "slug": "acme-corp"
+    },
+    "tokens": {
+      "accessToken": "eyJhbGc...",
+      "refreshToken": "eyJhbGc...",
+      "expiresIn": 900
+    }
+  }
+}
+```
+
+> New users are created with `isEmailVerified: true` — the invitation token proves email ownership.
+> User is automatically logged in after accepting (tokens returned).
+
+**Errors:**
+| Status | Reason |
+|---|---|
+| 400 | Token invalid or expired |
+| 400 | Invitation already accepted |
+| 400 | New user — firstName, lastName, password required |
+| 409 | Already an active member of this organization |
+
+---
+
 ## Permission System
 
 TeamFlow uses **Role-Based Access Control (RBAC)** with two layers:
@@ -1205,6 +1538,10 @@ Attack 4: Wrong resource   → MEMBER editing another member's tasks
 - **Super Admin Protection** — Admin panel returns 404 to non-admin users to hide its existence
 - **Suspension Lock** — Organizations suspended by super admin cannot be reactivated by the owner
 - **Server-side Onboarding** — `isOnboarded` calculated server-side, never trusted from client
+- **Invitation Token Hashing** — Raw token travels in email link only. SHA256 hash stored in DB. Leaked DB cannot be used to accept invitations.
+- **One Token Per Email** — Resending deletes the old token before creating a new one. Only one valid invitation token per email at any time.
+- **Public Endpoint Rate Limiting** — `/invitations/accept` and `/invitations/:token` are rate limited to prevent token brute-forcing.
+- **Private Project Isolation** — Private projects return `404` (not `403`) to non-members to avoid leaking their existence.
 
 ---
 
@@ -1221,6 +1558,8 @@ Attack 4: Wrong resource   → MEMBER editing another member's tasks
 | 7   | Tenant settings, usage tracking, suspension, super admin                  | ✅ Done |
 | 8   | RBAC system — roles, permissions, middleware, seeding                     | ✅ Done |
 | 9   | Resource-based authorization, ownership checks, bulk role assignment      | ✅ Done |
+| 10  | Team management, team members, activity logging                           | ✅ Done |
+| 11  | User invitation system, token hashing, public accept endpoint             | ✅ Done |
 ---
 
 ## Author

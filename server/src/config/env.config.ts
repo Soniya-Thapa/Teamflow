@@ -20,7 +20,14 @@ export const envConfig = {
   jwtRefreshSecret: process.env.JWT_REFRESH_SECRET,
   expiresIn: process.env.JWT_EXPIRES_IN,
   refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
- 
+
+  email: {
+    resendApiKey: process.env.RESEND_API_KEY || '',
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+    fromName: process.env.EMAIL_FROM_NAME || 'TeamFlow',
+    frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+  },
+
   // databaseUrl: process.env.DATABASE_URL,
 
   // jwtSecretKey: process.env.JWT_SECRET,

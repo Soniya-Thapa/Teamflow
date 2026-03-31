@@ -30,6 +30,7 @@ import { BaseService } from '@/common/BaseService';
 import ApiError from '@/utils/ApiError';
 import passwordUtil from '@/utils/password.util';
 import { MemberRole } from '@prisma/client';
+import { addEmailJob, EmailJobType } from '@/modules/email/email.queue';
 
 // Invitation expires after 7 days
 const INVITATION_EXPIRY_DAYS = 7;
@@ -247,6 +248,15 @@ class InvitationService extends BaseService {
     this.log('Invitation created', { invitationId: invitation.id, email });
 
     // Email link format: https://teamflow.com/invite?token=${rawToken}
+
+    // Send email via queue
+    await addEmailJob(EmailJobType.INVITATION, {
+      to: invitation.email,
+      inviterName: `${invitation.inviter.firstName} ${invitation.inviter.lastName}`,
+      orgName: invitation.organization.name,
+      role: invitation.role,
+      token: rawToken,
+    });
     return {
       invitation,
       // devOnly: remove this when email service is wired up on Day 12
@@ -674,7 +684,7 @@ class InvitationService extends BaseService {
       ...inv,
       status: inv.acceptedAt ? 'accepted'
         : new Date() > inv.expiresAt ? 'expired'
-        : 'pending',
+          : 'pending',
       // Never expose tokenHash to client
       tokenHash: undefined,
     }));

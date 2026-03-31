@@ -8,6 +8,7 @@ import compression from 'compression';
 import { errorHandler, notFoundHandler } from '@/middleware/error.middleware';
 import logger from '@/utils/logger';
 import { envConfig } from './config/env.config';
+import '@/modules/email/email.processor';
 
 // Import routes
 import authRoutes from '@/modules/auth/auth.routes';
@@ -16,6 +17,7 @@ import adminRoutes from '@/modules/admin/admin.routes';
 import roleRoutes from '@/modules/roles/role.routes';
 import teamRoutes from '@/modules/teams/team.routes';
 import {orgInvitationRouter,publicInvitationRouter} from '@/modules/invitations/invitation.routes';
+import projectRoutes from '@/modules/projects/project.routes';
 
 const app: Application = express();
 
@@ -103,6 +105,7 @@ app.use(`${API_PREFIX}/organizations/:id/roles`, roleRoutes);
 app.use(`${API_PREFIX}/organizations/:id/teams`, teamRoutes);
 app.use(`${API_PREFIX}/organizations/:id/invitations`, orgInvitationRouter);
 app.use(`${API_PREFIX}/invitations`, publicInvitationRouter);
+app.use(`${API_PREFIX}/organizations/:id/projects`, projectRoutes);
 
 // 404 handler - must be after all routes
 app.use(notFoundHandler);

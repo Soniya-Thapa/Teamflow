@@ -22,7 +22,7 @@ export const requireOrganization = async (req: Request, res: Response, next: Nex
     //   req.query.organizationId as string ||
     //   req.body.organizationId || req.params.id;
 
-    const organizationId = req.params.id;
+    const organizationId = req.params.id as string;
 
     if (!organizationId) {
       throw ApiError.badRequest('Organization ID is required');

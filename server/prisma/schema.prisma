@@ -65,6 +65,11 @@ enum TeamMemberRole {
   MEMBER
 }
 
+enum ProjectVisibility {
+  PUBLIC   // All org members can see
+  PRIVATE  // Only invited project members can see
+}
+
 // CORE ENTITIES
 
 model Organization {
@@ -132,6 +137,9 @@ model User {
   refreshTokens       RefreshToken[]
   invitedMembers      OrganizationMember[] @relation("MemberInviter")
   passwordResetTokens PasswordResetToken[]
+  projectMembers      ProjectMember[]
+  projectFavorites    ProjectFavorite[]
+
   @@index([email])
   @@index([lastLoginAt])
   @@map("users")
@@ -258,18 +266,54 @@ model Project {
   createdBy      String
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+  visibility     ProjectVisibility @default(PUBLIC) 
+  archivedAt     DateTime?  
 
   // Relations
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  team         Team?        @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  creator      User         @relation("ProjectCreator", fields: [createdBy], references: [id], onDelete: Cascade)
-  tasks        Task[]
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  team            Team?        @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  creator         User         @relation("ProjectCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  tasks           Task[]
+  projectMembers  ProjectMember[]               
+  favorites       ProjectFavorite[]     
 
   @@index([organizationId])
   @@index([teamId])
   @@index([status])
   @@index([createdBy])
   @@map("projects")
+}
+
+// Project member (for private project access)
+model ProjectMember {
+  id        String   @id @default(uuid())
+  projectId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+  @@map("project_members")
+}
+
+// Project favorites (user stars a project)
+model ProjectFavorite {
+  id        String   @id @default(uuid())
+  projectId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+  @@map("project_favorites")
 }
 
 model Task {

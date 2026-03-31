@@ -3,6 +3,7 @@ import { BaseService } from "@/common/BaseService";
 import ApiError from "@/utils/ApiError";
 import jwtUtil from "@/utils/jwt.util";
 import passwordUtil from "@/utils/password.util";
+import { addEmailJob, EmailJobType } from '@/modules/email/email.queue';
 
 //-----------------------------AUTHENTICATION SERVICE-----------------------------
 
@@ -92,6 +93,12 @@ class AuthService extends BaseService {
     });
 
     this.log("User Registered Successfully.", { userId: user.id });
+
+    await addEmailJob(EmailJobType.WELCOME, {
+      to: user.email,
+      userName: `${user.firstName} ${user.lastName}`,
+      orgName: 'TeamFlow',
+    });
 
     // Generate tokens
     const tokens = await this.generateTokens(user.id, user.email);
@@ -359,6 +366,12 @@ class AuthService extends BaseService {
 
     this.log('Password reset token generated', { userId: user.id });
 
+    await addEmailJob(EmailJobType.PASSWORD_RESET, {
+      to: user.email,
+      userName: `${user.firstName} ${user.lastName}`,
+      resetToken: rawToken,  // the raw token BEFORE hashing — same variable you already have
+    });
+
     return {
       message: 'If this email exists, a reset link has been sent.',
       devOnly_resetToken: rawToken,
@@ -374,8 +387,8 @@ class AuthService extends BaseService {
     const tokenHash = passwordUtil.hashResetToken(rawToken);
 
     const resetToken = await this.prisma.passwordResetToken.findUnique({
-      where: { 
-        tokenHash 
+      where: {
+        tokenHash
       },
     });
 
@@ -390,35 +403,35 @@ class AuthService extends BaseService {
 
     // Update password
     await this.prisma.user.update({
-      where: { 
-        id: resetToken.userId 
+      where: {
+        id: resetToken.userId
       },
-      data: { 
-        password: hashedPassword 
+      data: {
+        password: hashedPassword
       },
     });
 
     // Mark token as used (don't delete — keep for audit trail)
     await this.prisma.passwordResetToken.update({
-      where: { 
-        id: resetToken.id 
+      where: {
+        id: resetToken.id
       },
-      data: { 
-        used: true 
+      data: {
+        used: true
       },
     });
 
     // Invalidate ALL refresh tokens — force re-login everywhere
     await this.prisma.refreshToken.deleteMany({
-      where: { 
-        userId: resetToken.userId 
+      where: {
+        userId: resetToken.userId
       },
     });
 
     this.log('Password reset successfully', { userId: resetToken.userId });
 
-    return { 
-      message: 'Password reset successfully. Please log in with your new password.' 
+    return {
+      message: 'Password reset successfully. Please log in with your new password.'
     };
   }
 }
