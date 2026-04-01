@@ -1356,6 +1356,671 @@ Accept an invitation. The invitation token authenticates the request.
 
 ---
 
+### Email System
+
+TeamFlow sends transactional emails asynchronously via a Bull queue backed by Redis.
+Emails never block API responses — they are queued and processed in the background.
+
+**Email flow:**
+```
+API response sent instantly
+     ↓
+addEmailJob() → Redis (Bull queue)
+     ↓
+email.processor.ts picks up job (concurrency: 5)
+     ↓
+EmailService.sendX() → Resend API → delivered to inbox
+```
+
+**Retry logic:** Failed jobs retry 3 times with exponential backoff (2s → 4s → 8s).
+
+**Triggered automatically by:**
+| Trigger | Email Sent |
+|---|---|
+| `POST /auth/register` | Welcome email to new user |
+| `POST /auth/forgot-password` | Password reset link |
+| `POST /organizations/:id/invitations` | Invitation email to invitee |
+
+> No HTTP endpoints exist for email — it is purely internal.
+> All email links point to `FRONTEND_URL` configured in `.env`.
+
+---
+
+### Project Endpoints
+
+> All endpoints require `Authorization: Bearer <accessToken>` header.
+> Organization context comes from the route path `/:id` — no separate header needed.
+
+---
+
+#### GET `/organizations/:id/projects` 🔒
+List all accessible projects. Enforces visibility rules automatically.
+
+**Visibility rules:**
+- `PUBLIC` projects → visible to all active org members
+- `PRIVATE` projects → visible only to ProjectMember records + org OWNER/ADMIN
+
+**Query Params:**
+| Param | Type | Default | Description |
+|---|---|---|---|
+| `page` | number | 1 | Page number |
+| `limit` | number | 10 | Items per page |
+| `search` | string | — | Search by project name |
+| `status` | string | — | Filter: `ACTIVE`, `ARCHIVED`, `COMPLETED` |
+| `teamId` | uuid | — | Filter by team |
+| `visibility` | string | — | Filter: `PUBLIC`, `PRIVATE` |
+| `sortBy` | string | `createdAt` | Sort field: `name`, `createdAt`, `updatedAt`, `status` |
+| `sortOrder` | string | `desc` | `asc` or `desc` |
+| `favorites` | boolean | false | Show only starred projects |
+| `startDate` | datetime | — | Filter projects starting after this date |
+| `endDate` | datetime | — | Filter projects ending before this date |
+
+**Response: 200 OK**
+```json
+{
+  "success": true,
+  "message": "Projects retrieved successfully",
+  "data": {
+    "projects": [
+      {
+        "id": "uuid",
+        "name": "TeamFlow Backend",
+        "description": "Core backend API",
+        "status": "ACTIVE",
+        "visibility": "PUBLIC",
+        "isFavorite": false,
+        "teamId": null,
+        "createdBy": "uuid",
+        "team": null,
+        "creator": {
+          "id": "uuid",
+          "firstName": "Soniya",
+          "lastName": "Thapa",
+          "avatar": null
+        },
+        "_count": { "tasks": 12, "projectMembers": 0 },
+        "createdAt": "2026-03-31T...",
+        "updatedAt": "2026-03-31T..."
+      }
+    ],
+    "meta": {
+      "page": 1,
+      "limit": 10,
+      "total": 1,
+      "totalPages": 1,
+      "hasNext": false,
+      "hasPrev": false
+    }
+  }
+}
+```
+
+---
+
+#### POST `/organizations/:id/projects` 🔒
+Create a new project. Requires `project:create` permission.
+If visibility is `PRIVATE`, creator is automatically added as a project member.
+Updates onboarding step to 3 when the first project is created.
+
+**Request Body:**
+```json
+{
+  "name": "TeamFlow Backend",
+  "description": "Core backend API project",
+  "teamId": "uuid",
+  "visibility": "PUBLIC",
+  "startDate": "2026-04-01T00:00:00.000Z",
+  "endDate": "2026-06-30T00:00:00.000Z"
+}
+```
+
+**Visibility options:** `PUBLIC` (default), `PRIVATE`
+
+**Errors:**
+| Status | Reason |
+|---|---|
+| 403 | Missing `project:create` permission |
+| 404 | teamId not found in this organization |
+
+---
+
+#### GET `/organizations/:id/projects/:projectId` 🔒
+Get a single project with full details including members and member count.
+
+> Private projects return `404` (not `403`) to non-members to avoid leaking existence.
+
+**Response includes:** project details, team info, creator info, project members list, task count, `isFavorite` flag.
+
+---
+
+#### PATCH `/organizations/:id/projects/:projectId` 🔒
+Update project details. Project **creator** or org **OWNER/ADMIN** can update.
+Requires `project:update` permission.
+
+**Request Body (all fields optional, at least one required):**
+```json
+{
+  "name": "Updated Project Name",
+  "description": "Updated description",
+  "teamId": "uuid",
+  "visibility": "PRIVATE",
+  "startDate": "2026-04-01T00:00:00.000Z",
+  "endDate": null
+}
+```
+
+> Send `null` for `teamId`, `description`, `startDate`, or `endDate` to clear the field.
+
+---
+
+#### DELETE `/organizations/:id/projects/:projectId` 🔒
+Hard delete a project. Requires `project:delete` permission + org **OWNER/ADMIN**.
+Cascades to all tasks, comments, and attachments.
+
+---
+
+#### PATCH `/organizations/:id/projects/:projectId/archive` 🔒
+Archive a project (sets `status: ARCHIVED`, records `archivedAt`).
+Archived projects are excluded from default listing unless `status=ARCHIVED` filter is used.
+Data is fully preserved — nothing is deleted.
+
+**Errors:**
+| Status | Reason |
+|---|---|
+| 400 | Project already archived |
+| 403 | Missing `project:update` permission |
+
+---
+
+#### PATCH `/organizations/:id/projects/:projectId/unarchive` 🔒
+Restore an archived project back to `ACTIVE` status.
+
+**Errors:**
+| Status | Reason |
+|---|---|
+| 400 | Project is not archived |
+
+---
+
+#### POST `/organizations/:id/projects/:projectId/duplicate` 🔒
+Create a copy of a project. Optionally copies task structure as a skeleton.
+
+> Duplicated tasks are reset: status → `TODO`, no assignee, no due date.
+> Only task titles, descriptions, priorities, and estimated hours are copied.
+
+**Request Body:**
+```json
+{
+  "name": "Copy of Backend Project",
+  "includeTasks": true
+}
+```
+
+**Response: 201 Created** — returns the new project.
+
+---
+
+#### POST `/organizations/:id/projects/:projectId/favorite` 🔒
+Toggle favorite (star/unstar) for the current user.
+Favorites are per-user and do not affect other members.
+
+**Response: 200 OK**
+```json
+{
+  "success": true,
+  "message": "Project added to favorites",
+  "data": { "isFavorite": true, "message": "Project added to favorites" }
+}
+```
+
+---
+
+#### GET `/organizations/:id/projects/:projectId/stats` 🔒
+Get task statistics for a project.
+
+**Response: 200 OK**
+```json
+{
+  "success": true,
+  "message": "Project stats retrieved successfully",
+  "data": {
+    "stats": {
+      "total": 20,
+      "todo": 8,
+      "inProgress": 5,
+      "review": 3,
+      "done": 4,
+      "overdue": 2,
+      "completionPercentage": 20
+    }
+  }
+}
+```
+
+---
+
+#### GET `/organizations/:id/projects/:projectId/activity` 🔒
+Get the activity timeline for a project from the audit log.
+Returns all actions performed on this project ordered by most recent.
+
+**Query Params:** `page`, `limit` (default limit: 20)
+
+**Response includes:** action type, user who performed it, timestamp, metadata.
+
+---
+
+#### POST `/organizations/:id/projects/:projectId/members` 🔒
+Add an org member to a **PRIVATE** project's access list.
+Requires `project:update` permission + project creator or OWNER/ADMIN.
+
+> Cannot add members to a PUBLIC project. Change visibility to PRIVATE first.
+> Target user must be an active org member.
+
+**Request Body:**
+```json
+{
+  "userId": "uuid"
+}
+```
+
+**Errors:**
+| Status | Reason |
+|---|---|
+| 400 | Project is PUBLIC — members not applicable |
+| 404 | Target user not an active org member |
+| 409 | User already a project member |
+
+---
+
+#### DELETE `/organizations/:id/projects/:projectId/members/:memberId` 🔒
+Remove a member from a private project's access list.
+
+> Cannot remove the project creator.
+
+---
+
+---
+
+### Task Endpoints
+
+> All endpoints require `Authorization: Bearer <accessToken>` header.
+> Organization context comes from the route path `/:id`.
+
+---
+
+#### GET `/organizations/:id/tasks` 🔒
+List tasks with rich filtering, search, and pagination.
+Requires `task:read` permission.
+
+**Query Params:**
+| Param | Type | Default | Description |
+|---|---|---|---|
+| `page` | number | 1 | Page number |
+| `limit` | number | 20 | Items per page |
+| `projectId` | uuid | — | Filter by project |
+| `status` | enum | — | `TODO`, `IN_PROGRESS`, `REVIEW`, `DONE` |
+| `priority` | enum | — | `LOW`, `MEDIUM`, `HIGH`, `URGENT` |
+| `assignedTo` | uuid | — | Filter by assignee user ID |
+| `createdBy` | uuid | — | Filter by creator user ID |
+| `dueBefore` | datetime | — | Tasks due before this date |
+| `dueAfter` | datetime | — | Tasks due after this date |
+| `isOverdue` | boolean | — | `true` returns tasks past due date with status != DONE |
+| `search` | string | — | Search on title and description |
+| `parentTaskId` | uuid\|`null` | — | `null` = root tasks only, uuid = subtasks of that task |
+| `sortBy` | string | `createdAt` | `createdAt`, `updatedAt`, `dueDate`, `priority`, `title` |
+| `sortOrder` | string | `desc` | `asc` or `desc` |
+
+---
+
+#### POST `/organizations/:id/tasks` 🔒
+Create a new task. Requires `task:create` permission.
+Any active org member with `task:create` permission can create tasks.
+
+**Request Body:**
+```json
+{
+  "projectId": "uuid",
+  "title": "Implement login page",
+  "description": "Build login UI with validation",
+  "status": "TODO",
+  "priority": "HIGH",
+  "assignedTo": "uuid",
+  "dueDate": "2026-04-15T00:00:00.000Z",
+  "estimatedHours": 8,
+  "parentTaskId": null
+}
+```
+
+> First task created in an org advances onboarding to step 4.
+> `assignedTo` field on Task stores the primary assignee UUID for quick reference.
+> Use the `/assignees` endpoint to manage multiple assignees.
+
+**Errors:**
+| Status | Reason |
+|---|---|
+| 400 | Project is archived |
+| 400 | `assignedTo` is not an active org member |
+| 403 | Project is private and user is not a project member |
+| 404 | Project not found |
+
+---
+
+#### GET `/organizations/:id/tasks/:taskId` 🔒
+Get a single task with full details including subtasks, watchers, and all assignees.
+
+---
+
+#### PATCH `/organizations/:id/tasks/:taskId` 🔒
+Update a task. Requires `task:update` permission.
+
+**Access Rules (enforced at service layer):**
+
+| Update Type | Who can update |
+|---|---|
+| Status only (`{ "status": "DONE" }`) | Assignee, watcher, creator, OWNER/ADMIN |
+| Full update (title, description etc.) | Assignee, creator, OWNER/ADMIN only |
+| Random member with no relation | ❌ 403 Forbidden |
+
+> Pass `null` to clear optional fields: `{ "dueDate": null }`, `{ "assignedTo": null }`
+> A task cannot be set as its own parent.
+
+**Errors:**
+| Status | Reason |
+|---|---|
+| 400 | No fields provided |
+| 400 | `parentTaskId` is the same as `taskId` |
+| 403 | User has no relation to this task (not assignee, creator, watcher, or admin) |
+| 404 | Task not found |
+
+---
+
+#### DELETE `/organizations/:id/tasks/:taskId` 🔒
+Delete a task. Requires `task:delete` permission.
+Only task **creator** or org **OWNER/ADMIN** can delete.
+All subtasks, comments, attachments cascade delete automatically.
+
+---
+
+#### GET `/organizations/:id/tasks/overdue` 🔒
+Return all tasks past their due date with status not `DONE`.
+Ordered by `dueDate` ascending (most overdue first).
+
+**Query Params:** `page`, `limit`, `projectId`, `assignedTo`
+
+---
+
+#### GET `/organizations/:id/tasks/:taskId/activity` 🔒
+Retrieve the activity log for a specific task.
+
+---
+
+### Task Assignment Endpoints
+
+TeamFlow supports **two assignment scenarios**:
+```
+Scenario 1 — REPLACE (replacePrevious: true):
+  Task was Soniya's → reassigned to Ram exclusively
+  → Soniya removed from assignees AND watchers (discarded)
+  → Ram becomes primary assignee
+  → Ram auto-added as watcher
+
+Scenario 2 — ADD (replacePrevious: false):
+  Task is urgent → Ram added alongside Soniya
+  → Soniya stays as assignee
+  → Ram added as additional assignee
+  → Both can update task status
+```
+
+---
+
+#### GET `/organizations/:id/tasks/:taskId/assignees` 🔒
+List all assignees for a task. Primary assignee appears first.
+Requires `task:read` permission.
+
+**Response: 200 OK**
+```json
+{
+  "success": true,
+  "data": {
+    "assignees": [
+      {
+        "id": "uuid",
+        "firstName": "Soniya",
+        "lastName": "Thapa",
+        "email": "soniya@example.com",
+        "avatar": null,
+        "isPrimary": true,
+        "assignedAt": "2026-04-01T..."
+      },
+      {
+        "id": "uuid",
+        "firstName": "Ram",
+        "lastName": "Sharma",
+        "email": "ram@example.com",
+        "avatar": null,
+        "isPrimary": false,
+        "assignedAt": "2026-04-02T..."
+      }
+    ]
+  }
+}
+```
+
+---
+
+#### POST `/organizations/:id/tasks/:taskId/assignees` 🔒
+Assign a user to a task. Requires `task:assign` permission.
+
+**Request Body:**
+```json
+{
+  "userId": "uuid",
+  "isPrimary": true,
+  "replacePrevious": true
+}
+```
+
+**Fields:**
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `userId` | uuid | required | User to assign |
+| `isPrimary` | boolean | `true` | Is this the main responsible person? |
+| `replacePrevious` | boolean | `true` | `true` = Scenario 1 (replace), `false` = Scenario 2 (add alongside) |
+
+**Scenario 1 — Replace (`replacePrevious: true`):**
+```json
+{
+  "userId": "<ram-uuid>",
+  "isPrimary": true,
+  "replacePrevious": true
+}
+```
+Result: All previous assignees removed and their watcher subscriptions deleted. Ram becomes sole assignee.
+
+**Scenario 2 — Add alongside (`replacePrevious: false`):**
+```json
+{
+  "userId": "<ram-uuid>",
+  "isPrimary": false,
+  "replacePrevious": false
+}
+```
+Result: Soniya stays assigned. Ram added as additional assignee. Both can update task status.
+
+**Errors:**
+| Status | Reason |
+|---|---|
+| 400 | Target user is not an active org member |
+| 403 | Missing `task:assign` permission |
+| 404 | Task not found |
+
+---
+
+#### DELETE `/organizations/:id/tasks/:taskId/assignees/:userId` 🔒
+Remove a specific assignee from a task. Requires `task:assign` permission.
+
+> If the removed person was the primary assignee, the next assignee is automatically promoted to primary.
+> Removed assignee is also removed from task watchers (they are discarded).
+
+---
+
+### Bulk Task Endpoints
+
+---
+
+#### PATCH `/organizations/:id/tasks/bulk/status` 🔒
+Update status for up to 100 tasks at once. Requires `task:update` permission.
+
+**Request Body:**
+```json
+{
+  "taskIds": ["uuid", "uuid"],
+  "status": "DONE"
+}
+```
+
+---
+
+#### PATCH `/organizations/:id/tasks/bulk/assign` 🔒
+Assign up to 100 tasks at once (Scenario 1 — replace). Requires `task:update` permission.
+Pass `null` for `assignedTo` to unassign all tasks.
+
+**Request Body:**
+```json
+{
+  "taskIds": ["uuid", "uuid"],
+  "assignedTo": "uuid"
+}
+```
+
+---
+
+#### DELETE `/organizations/:id/tasks/bulk` 🔒
+Delete up to 100 tasks at once. Requires `task:delete` permission.
+
+**Request Body:**
+```json
+{
+  "taskIds": ["uuid", "uuid"]
+}
+```
+
+---
+
+### Task Watcher Endpoints
+
+Watchers subscribe to a task and receive notifications on changes.
+Assignees are auto-added as watchers. When replaced (Scenario 1), they are auto-removed.
+
+---
+
+#### GET `/organizations/:id/tasks/:taskId/watchers` 🔒
+List all task watchers.
+
+#### POST `/organizations/:id/tasks/:taskId/watchers` 🔒
+Add a watcher manually. Target must be active org member.
+
+**Request Body:** `{ "userId": "uuid" }`
+
+#### DELETE `/organizations/:id/tasks/:taskId/watchers/:userId` 🔒
+Remove a watcher from a task.
+
+---
+
+### Task Comment Endpoints
+
+---
+
+#### GET `/organizations/:id/tasks/:taskId/comments` 🔒
+List comments ordered oldest first. Requires `comment:read` permission.
+
+#### POST `/organizations/:id/tasks/:taskId/comments` 🔒
+Add a comment. Requires `comment:create` permission. Max 5000 characters.
+
+**Request Body:** `{ "content": "This needs a design review first." }`
+
+#### PATCH `/organizations/:id/tasks/:taskId/comments/:commentId` 🔒
+Update a comment. Requires `comment:update` permission.
+Only comment **author** can edit. OWNER/ADMIN can edit any comment.
+
+#### DELETE `/organizations/:id/tasks/:taskId/comments/:commentId` 🔒
+Delete a comment. Requires `comment:delete` permission.
+Only comment **author** or OWNER/ADMIN can delete.
+
+---
+
+### Subtask Endpoints
+
+---
+
+#### GET `/organizations/:id/tasks/:taskId/subtasks` 🔒
+List all subtasks of a parent task.
+
+#### POST `/organizations/:id/tasks/:taskId/subtasks` 🔒
+Create a subtask. Inherits `projectId` from parent automatically.
+Only **one level** of nesting allowed — a subtask cannot have subtasks.
+
+**Request Body:**
+```json
+{
+  "title": "Write unit tests for login",
+  "priority": "MEDIUM",
+  "assignedTo": "uuid",
+  "dueDate": "2026-04-10T00:00:00.000Z",
+  "estimatedHours": 3
+}
+```
+
+**Errors:**
+| Status | Reason |
+|---|---|
+| 400 | Parent is itself a subtask — max one level deep |
+| 404 | Parent task not found |
+
+---
+
+#### GET `/organizations/:id/tasks/:taskId/subtasks` 🔒
+List all subtasks of a parent task. Ordered by `createdAt` ascending.
+Requires `task:read` permission.
+
+**Response includes:** full task shape for each subtask (same fields as task list).
+
+---
+
+#### POST `/organizations/:id/tasks/:taskId/subtasks` 🔒
+Create a subtask under a parent task. Requires `task:create` permission.
+The subtask inherits the parent's `projectId` automatically.
+
+**Validates:**
+- Parent task exists in the organization
+- Parent is not itself a subtask — only one level of nesting allowed
+- `assignedTo` must be an active org member
+
+**Request Body:**
+```json
+{
+  "title": "Write unit tests for login",
+  "description": "Cover happy path and error cases",
+  "priority": "MEDIUM",
+  "assignedTo": "uuid",
+  "dueDate": "2026-04-10T00:00:00.000Z",
+  "estimatedHours": 3
+}
+```
+
+> `projectId` is inherited from the parent — do not pass it here.
+
+**Response: 201 Created**
+
+**Errors:**
+| Status | Reason |
+|---|---|
+| 400 | Parent task is itself a subtask — nesting only one level deep |
+| 400 | `assignedTo` is not an active org member |
+| 404 | Parent task not found |
+
+---
+
 ## Permission System
 
 TeamFlow uses **Role-Based Access Control (RBAC)** with two layers:
@@ -1416,6 +2081,31 @@ router.patch('/tasks/:id',
 
 ### Permission Caching
 Permissions are cached in memory for **5 minutes** per member to avoid hitting the database on every request. Cache is automatically cleared when a member's roles are changed. In production, this cache moves to Redis.
+
+### Project Visibility System
+
+Projects support two visibility levels:
+```
+PUBLIC  → All active org members can read the project
+PRIVATE → Only ProjectMember records + org OWNER/ADMIN can read
+
+Security note: Private projects return 404 (not 403) to non-members.
+This prevents leaking that a private project exists at all.
+```
+
+**When to use PRIVATE:**
+- Confidential client work
+- Executive planning projects
+- Projects involving sensitive data
+
+**How private access works:**
+```
+Creator creates PRIVATE project
+  → Creator auto-added as ProjectMember
+  → Creator manually adds other members via POST /members
+  → Non-members get 404 on any request to that project
+  → Org OWNER/ADMIN can always access all projects regardless
+```
 
 ---
 
@@ -1542,27 +2232,39 @@ Attack 4: Wrong resource   → MEMBER editing another member's tasks
 - **One Token Per Email** — Resending deletes the old token before creating a new one. Only one valid invitation token per email at any time.
 - **Public Endpoint Rate Limiting** — `/invitations/accept` and `/invitations/:token` are rate limited to prevent token brute-forcing.
 - **Private Project Isolation** — Private projects return `404` (not `403`) to non-members to avoid leaking their existence.
-
+-- **Task Update Access Control** — Status-only updates allowed for assignees, watchers, creator, and OWNER/ADMIN. Full detail updates (title, description) restricted to assignees, creator, and OWNER/ADMIN only. Random org members cannot edit tasks they have no relation to.
+- **TaskAssignee System** — Two assignment scenarios supported: Scenario 1 (replace — previous assignee discarded, removed from watchers) and Scenario 2 (add alongside — both assignees active, both can update status).
+- **Auto-watcher Management** — New assignees are automatically added as watchers. Replaced assignees (Scenario 1) are automatically removed from watchers, preventing them from updating the task after reassignment.
+- **Bulk Operation Atomicity** — All bulk operations run in a single `$transaction`. Any invalid task ID rejects the entire batch before any writes occur.
+- **Subtask Depth Limit** — Maximum one level of nesting. A subtask cannot itself have subtasks, enforced at service layer before any DB write.
+- **Comment Ownership** — `requireCommentAccess` middleware enforces authorship after RBAC permission check. OWNER/ADMIN can manage any comment.
 ---
 
 ## Progress
 
-| Day | Feature                                                                   | Status  |
-|-----|---------------------------------------------------------------------------|---------|
-| 1   | Project setup, Docker, environment config                                 | ✅ Done |
-| 2   | Database schema design, Prisma setup, migrations                          | ✅ Done |
-| 3   | Express app structure, error handling, logging, middleware                | ✅ Done |
-| 4   | JWT authentication, registration, login, middleware                       | ✅ Done |
-| 5   | Refresh token rotation, password reset, rate limiting                     | ✅ Done |
-| 6   | Organization/tenant management (CRUD, soft delete, status)                | ✅ Done |
-| 7   | Tenant settings, usage tracking, suspension, super admin                  | ✅ Done |
-| 8   | RBAC system — roles, permissions, middleware, seeding                     | ✅ Done |
-| 9   | Resource-based authorization, ownership checks, bulk role assignment      | ✅ Done |
-| 10  | Team management, team members, activity logging                           | ✅ Done |
-| 11  | User invitation system, token hashing, public accept endpoint             | ✅ Done |
+| Day | Feature                                                                         | Status  |
+|-----|---------------------------------------------------------------------------------|---------|
+| 1   | Project setup, Docker, environment config                                       | ✅ Done |
+| 2   | Database schema design, Prisma setup, migrations                                | ✅ Done |
+| 3   | Express app structure, error handling, logging, middleware                      | ✅ Done |
+| 4   | JWT authentication, registration, login, middleware                             | ✅ Done |
+| 5   | Refresh token rotation, password reset, rate limiting                           | ✅ Done |
+| 6   | Organization/tenant management (CRUD, soft delete, status)                      | ✅ Done |
+| 7   | Tenant settings, usage tracking, suspension, super admin                        | ✅ Done |
+| 8   | RBAC system — roles, permissions, middleware, seeding                           | ✅ Done |
+| 9   | Resource-based authorization, ownership checks, bulk role assignment            | ✅ Done |
+| 10  | Team management, team members, activity logging                                 | ✅ Done |
+| 11  | User invitation system, token hashing, public accept endpoint                   | ✅ Done |
+| 12  | Email service — Resend, Bull queue, async processing, templates                 | ✅ Done |
+| 13  | Project management Part 1 — CRUD, visibility, archiving, tenant isolation       | ✅ Done |
+| 14  | Project management Part 2 — members, stats, activity, favorites, duplication    | ✅ Done |
+| 15  | Task management — CRUD, filters, bulk operations, overdue endpoint              | ✅ Done |
+| 16  | Task comments, watchers, subtasks, activity log, TaskAssignee system            | ✅ Done |
 ---
 
 ## Author
 
 **Soniya Thapa**  
 College Project — Multi-Tenant SaaS Backend
+
+

@@ -18,6 +18,7 @@ import roleRoutes from '@/modules/roles/role.routes';
 import teamRoutes from '@/modules/teams/team.routes';
 import {orgInvitationRouter,publicInvitationRouter} from '@/modules/invitations/invitation.routes';
 import projectRoutes from '@/modules/projects/project.routes';
+import taskRoutes from '@/modules/tasks/task.routes';
 
 const app: Application = express();
 
@@ -106,6 +107,7 @@ app.use(`${API_PREFIX}/organizations/:id/teams`, teamRoutes);
 app.use(`${API_PREFIX}/organizations/:id/invitations`, orgInvitationRouter);
 app.use(`${API_PREFIX}/invitations`, publicInvitationRouter);
 app.use(`${API_PREFIX}/organizations/:id/projects`, projectRoutes);
+app.use(`${API_PREFIX}/organizations/:id/tasks`, taskRoutes);
 
 // 404 handler - must be after all routes
 app.use(notFoundHandler);

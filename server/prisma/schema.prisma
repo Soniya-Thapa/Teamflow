@@ -139,6 +139,9 @@ model User {
   passwordResetTokens PasswordResetToken[]
   projectMembers      ProjectMember[]
   projectFavorites    ProjectFavorite[]
+  taskWatchers        TaskWatcher[]
+  taskAssignees       TaskAssignee[]
+  assignedByMe        TaskAssignee[] @relation("AssignedBy")
 
   @@index([email])
   @@index([lastLoginAt])
@@ -325,10 +328,12 @@ model Task {
   status         TaskStatus   @default(TODO)
   priority       TaskPriority @default(MEDIUM)
   assignedTo     String?
+  assignees    TaskAssignee[]  
   dueDate        DateTime?
   estimatedHours Int?
   actualHours    Int?
   createdBy      String
+  parentTaskId   String?       // self-reference for subtasks
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -339,6 +344,9 @@ model Task {
   creator      User         @relation("TaskCreator", fields: [createdBy], references: [id], onDelete: Cascade)
   comments     Comment[]
   attachments  Attachment[]
+  parent         Task?         @relation("TaskSubtasks", fields: [parentTaskId], references: [id], onDelete: Cascade)
+  subtasks       Task[]        @relation("TaskSubtasks")
+  watchers       TaskWatcher[]
 
   @@index([organizationId])
   @@index([projectId])
@@ -346,7 +354,45 @@ model Task {
   @@index([status])
   @@index([priority])
   @@index([dueDate])
+  @@index([parentTaskId])
   @@map("tasks")
+}
+
+model TaskWatcher {
+  id        String   @id @default(uuid())
+  taskId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId])
+  @@index([taskId])
+  @@index([userId])
+  @@map("task_watchers")
+}
+
+// Add to schema.prisma
+
+model TaskAssignee {
+  id        String   @id @default(uuid())
+  taskId    String
+  userId    String
+  // isPrimary: true = main responsible person
+  // isPrimary: false = additional helper (urgency scenario)
+  isPrimary Boolean  @default(true)
+  assignedBy String  // who made this assignment
+  createdAt DateTime @default(now())
+
+  task       Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user       User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedByUser User @relation("AssignedBy", fields: [assignedBy], references: [id])
+
+  @@unique([taskId, userId])
+  @@index([taskId])
+  @@index([userId])
+  @@map("task_assignees")
 }
 
 // Permission represents a single action that can be performed

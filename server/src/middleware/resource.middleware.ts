@@ -123,7 +123,7 @@ export const requireTaskAccess = (
 ) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { taskId } = req.params;
+      const taskId = req.params.taskId as string;
       const userId = req.userId!;
       const organizationId = req.organizationId!;
 
@@ -142,25 +142,68 @@ export const requireTaskAccess = (
         return next();
       }
 
-      const isCreator = task.createdBy === userId;
-      const isAssignee = task.assignedTo === userId;
+      //  // Status update — ANY active org member can move a task
+      // // (same as Jira — anyone can drag a card on the board)
+      // if (action === 'update-status') {
+      //   return next();
+      // }
 
-      // Status update — creator or assignee can update
+      const isCreator = task.createdBy === userId;
+
+      // const isAssignee = task.assignedTo === userId;
+
+      // Check TaskAssignee table — covers both primary and additional assignees
+      const isAssignee = await prisma.taskAssignee.findUnique({
+        where: { taskId_userId: { taskId, userId } },
+      });
+
+      // // Status update — creator or assignee can update
+      // if (action === 'update-status') {
+      //   if (isCreator || isAssignee) {
+      //     return next();
+      //   }
+      //   throw ApiError.forbidden(
+      //     'Only the task creator or assignee can update task status',
+      //   );
+      // }
+
       if (action === 'update-status') {
-        if (isCreator || isAssignee) {
-          return next();
-        }
+        if (isCreator || isAssignee) return next();
+
+        // Check watcher
+        const isWatcher = await prisma.taskWatcher.findUnique({
+          where: { taskId_userId: { taskId, userId } },
+        });
+
+        if (isWatcher) return next();
+
+        // Check OWNER/ADMIN
+        const isAdmin = await prisma.organizationMember.findFirst({
+          where: {
+            userId,
+            organizationId,
+            status: 'ACTIVE',
+            role: { in: ['OWNER', 'ADMIN'] },
+          },
+        });
+
+        if (isAdmin) return next();
+
         throw ApiError.forbidden(
-          'Only the task creator or assignee can update task status',
+          'Only task assignees, creator, watchers, or admins can update task status',
         );
       }
 
-      // Full update — creator or OWNER/ADMIN
+      // ─────────────────────────────────────────
+      // FULL UPDATE
+      // ─────────────────────────────────────────
       if (action === 'update') {
         if (isCreator || isAssignee) return next();
       }
 
-      // Delete — creator or OWNER/ADMIN only
+      // ─────────────────────────────────────────
+      // DELETE
+      // ─────────────────────────────────────────
       if (isCreator) return next();
 
       const member = await prisma.organizationMember.findFirst({
@@ -254,16 +297,16 @@ export const requireCommentAccess = (action: 'update' | 'delete') => {
 
 // ───────────────────────────────────────── TEAM ACCESS ─────────────────────────────────────────
 
-  // Checks if user can perform an action on a specific team.
- 
-  // Access rules:
-  //   'read'   → any active org member
-  //   'update' → team leader OR org OWNER/ADMIN
-  //   'delete' → org OWNER/ADMIN only
-  //   'manage-members' → team leader OR org OWNER/ADMIN
- 
-  // param action - 'read' | 'update' | 'delete' | 'manage-members'
- 
+// Checks if user can perform an action on a specific team.
+
+// Access rules:
+//   'read'   → any active org member
+//   'update' → team leader OR org OWNER/ADMIN
+//   'delete' → org OWNER/ADMIN only
+//   'manage-members' → team leader OR org OWNER/ADMIN
+
+// param action - 'read' | 'update' | 'delete' | 'manage-members'
+
 export const requireTeamAccess = (action: 'read' | 'update' | 'delete' | 'manage-members') => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -318,3 +361,4 @@ export const requireTeamAccess = (action: 'read' | 'update' | 'delete' | 'manage
     }
   };
 };
+
