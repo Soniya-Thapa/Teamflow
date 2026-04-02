@@ -248,12 +248,3 @@ router.post(
 );
 
 export default router;
-
-
-
-// **Test tenant isolation** (access task from wrong org — should fail):
-// ```
-// GET /api/v1/organizations/<org-B-id>/tasks/<org-A-task-id>
-// Authorization: Bearer {{orgB_token}}
-
-// Expected: 404 Task not found

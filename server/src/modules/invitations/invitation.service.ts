@@ -31,6 +31,8 @@ import ApiError from '@/utils/ApiError';
 import passwordUtil from '@/utils/password.util';
 import { MemberRole } from '@prisma/client';
 import { addEmailJob, EmailJobType } from '@/modules/email/email.queue';
+import notificationService from '@/modules/notifications/notification.service';
+import { NotificationType } from '@prisma/client';
 
 // Invitation expires after 7 days
 const INVITATION_EXPIRY_DAYS = 7;
@@ -418,6 +420,15 @@ class InvitationService extends BaseService {
       invitation.id,
       { email: invitation.email, role: invitation.role },
     );
+
+    await notificationService.createNotification({
+  userId: invitation.invitedBy, // notify the person who sent invite
+  organizationId: invitation.organizationId,
+  type: NotificationType.INVITATION_ACCEPTED,
+  title: 'Invitation accepted',
+  message: `${user.firstName} joined your organization`,
+  metadata: { invitationId: invitation.id },
+});
 
     this.log('Invitation accepted', {
       invitationId: invitation.id,

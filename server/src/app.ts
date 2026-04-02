@@ -19,6 +19,9 @@ import teamRoutes from '@/modules/teams/team.routes';
 import {orgInvitationRouter,publicInvitationRouter} from '@/modules/invitations/invitation.routes';
 import projectRoutes from '@/modules/projects/project.routes';
 import taskRoutes from '@/modules/tasks/task.routes';
+import memberRoutes from '@/modules/members/member.routes';
+import notificationRoutes from '@/modules/notifications/notification.routes';
+import activityRoutes from '@/modules/notifications/activity.routes';
 
 const app: Application = express();
 
@@ -108,6 +111,9 @@ app.use(`${API_PREFIX}/organizations/:id/invitations`, orgInvitationRouter);
 app.use(`${API_PREFIX}/invitations`, publicInvitationRouter);
 app.use(`${API_PREFIX}/organizations/:id/projects`, projectRoutes);
 app.use(`${API_PREFIX}/organizations/:id/tasks`, taskRoutes);
+app.use(`${API_PREFIX}/organizations/:id/members`, memberRoutes);
+app.use(`${API_PREFIX}/organizations/:id/notifications`, notificationRoutes);
+app.use(`${API_PREFIX}/organizations/:id/activity`, activityRoutes);
 
 // 404 handler - must be after all routes
 app.use(notFoundHandler);

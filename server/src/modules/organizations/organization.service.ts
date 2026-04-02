@@ -14,6 +14,8 @@
 import { BaseService } from "@/common/BaseService";
 import ApiError from "@/utils/ApiError";
 import { OrganizationStatus } from "@prisma/client";
+import notificationService from '@/modules/notifications/notification.service';
+import { NotificationType } from '@prisma/client';
 
 //-----------------------------ORGANIZATION SERVICE---------------------------------------------------------------------------------------
 
@@ -127,6 +129,15 @@ class OrganizationService extends BaseService {
     })
 
     this.log('Organization created successfully', { organizationId: organization.id });
+
+    await notificationService.createNotification({
+      userId,
+      organizationId: organization.id,
+      type: NotificationType.ORGANIZATION_CREATED,
+      title: 'Organization created',
+      message: `Your organization "${data.name}" has been created successfully`,
+      metadata: { organizationId: organization.id },
+    });
 
     return organization;
   }
@@ -315,6 +326,15 @@ class OrganizationService extends BaseService {
 
     this.log('Organization updated', { organizationId: id });
 
+    await notificationService.createNotification({
+  userId,
+  organizationId: id,
+  type: NotificationType.ORGANIZATION_UPDATED,
+  title: 'Organization updated',
+  message: `Organization "${data.name || 'details'}" has been updated`,
+  metadata: { organizationId: id },
+});
+
     return updated;
   }
 
@@ -365,6 +385,15 @@ class OrganizationService extends BaseService {
     });
 
     this.log('Organization soft deleted', { organizationId: id });
+
+    await notificationService.createNotification({
+  userId,
+  organizationId: id,
+  type: NotificationType.ORGANIZATION_DELETED,
+  title: 'Organization deleted',
+  message: `Your organization has been deleted`,
+  metadata: { organizationId: id },
+});
 
     return { message: 'Organization deleted successfully' };
   }
@@ -691,6 +720,15 @@ class OrganizationService extends BaseService {
     });
 
     this.log('Organization status updated', { organizationId, status });
+
+    await notificationService.createNotification({
+  userId,
+  organizationId,
+  type: NotificationType.ORGANIZATION_STATUS_UPDATED,
+  title: 'Organization status changed',
+  message: `Organization status changed to ${status}`,
+  metadata: { organizationId, status },
+});
 
     return updated;
   }

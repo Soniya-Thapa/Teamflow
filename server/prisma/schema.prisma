@@ -70,6 +70,34 @@ enum ProjectVisibility {
   PRIVATE  // Only invited project members can see
 }
 
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_COMMENT
+  TASK_DUE_SOON
+  MEMBER_INVITED
+  MEMBER_JOINED
+  MEMBER_LEFT
+  MEMBER_REMOVED
+  MEMBER_ROLE_UPDATED
+  PROJECT_CREATED
+  PROJECT_ARCHIVED
+  PROJECT_UNARCHIVED
+  PROJECT_UPDATED
+  PROJECT_DELETED
+  PROJECT_MEMBER_ADDED
+  PROJECT_MEMBER_REMOVED
+  MENTION
+  ORG_SUSPENDED
+  OWNERSHIP_TRANSFERRED
+  OWNERSHIP_RECEIVED
+  ORGANIZATION_CREATED
+  ORGANIZATION_UPDATED
+  ORGANIZATION_DELETED
+  ORGANIZATION_STATUS_UPDATED
+  INVITATION_ACCEPTED
+  COMMENT_ADDED
+}
+
 // CORE ENTITIES
 
 model Organization {
@@ -101,7 +129,6 @@ model Organization {
   settings      OrganizationSettings?
   usage         OrganizationUsage?
   roles         Role[]  
-
 
   @@index([slug])
   @@index([status])
@@ -564,7 +591,7 @@ model Notification {
   id             String   @id @default(uuid())
   userId         String
   organizationId String
-  type           String
+  type           NotificationType
   title          String
   message        String
   isRead         Boolean  @default(false)

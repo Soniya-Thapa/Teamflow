@@ -39,6 +39,8 @@
 import { BaseService } from '@/common/BaseService';
 import ApiError from '@/utils/ApiError';
 import { ProjectStatus, ProjectVisibility } from '@prisma/client';
+import notificationService from '@/modules/notifications/notification.service';
+import { NotificationType } from '@prisma/client';
 
 class ProjectService extends BaseService {
 
@@ -237,6 +239,15 @@ class ProjectService extends BaseService {
     );
 
     this.log('Project created', { projectId: project.id });
+
+    await notificationService.createNotification({
+  userId,
+  organizationId,
+  type: NotificationType.PROJECT_CREATED,
+  title: 'Project created',
+  message: `Project "${project.name}" has been created`,
+  metadata: { projectId: project.id },
+});
 
     return { project };
   }
@@ -566,6 +577,15 @@ class ProjectService extends BaseService {
 
     this.log('Project updated', { projectId });
 
+    await notificationService.createNotification({
+  userId,
+  organizationId,
+  type: NotificationType.PROJECT_UPDATED,
+  title: 'Project updated',
+  message: `Project "${updated.name}" has been updated`,
+  metadata: { projectId },
+});
+
     return { project: updated };
   }
 
@@ -627,6 +647,15 @@ class ProjectService extends BaseService {
 
     this.log('Project archived', { projectId });
 
+    await notificationService.createNotification({
+  userId,
+  organizationId,
+  type: NotificationType.PROJECT_ARCHIVED,
+  title: 'Project archived',
+  message: `Project "${project.name}" has been archived`,
+  metadata: { projectId },
+});
+
     return { project: archived };
   }
 
@@ -676,6 +705,15 @@ class ProjectService extends BaseService {
       projectId,
     );
 
+    await notificationService.createNotification({
+  userId,
+  organizationId,
+  type: NotificationType.PROJECT_UNARCHIVED,
+  title: 'Project restored',
+  message: `Project "${restored.name}" has been restored`,
+  metadata: { projectId },
+});
+
     return { project: restored };
   }
 
@@ -718,6 +756,15 @@ class ProjectService extends BaseService {
     );
 
     this.log('Project deleted', { projectId });
+
+    await notificationService.createNotification({
+  userId,
+  organizationId,
+  type: NotificationType.PROJECT_DELETED,
+  title: 'Project deleted',
+  message: `Project "${project.name}" has been deleted`,
+  metadata: { projectId },
+});
 
     return { message: 'Project deleted successfully' };
   }
@@ -825,6 +872,15 @@ class ProjectService extends BaseService {
       },
     );
 
+    await notificationService.createNotification({
+  userId: targetUserId, // 👈 notify the added user
+  organizationId,
+  type: NotificationType.PROJECT_MEMBER_ADDED,
+  title: 'Added to project',
+  message: `You were added to project "${project.name}"`,
+  metadata: { projectId },
+});
+
     return { projectMember };
   }
 
@@ -875,6 +931,15 @@ class ProjectService extends BaseService {
       projectId,
       { removedUserId: projectMember.userId },
     );
+
+    await notificationService.createNotification({
+  userId: projectMember.userId,
+  organizationId,
+  type: NotificationType.PROJECT_MEMBER_REMOVED,
+  title: 'Removed from project',
+  message: `You were removed from project "${project.name}"`,
+  metadata: { projectId },
+});
 
     return { message: 'Project member removed successfully' };
   }

@@ -19,6 +19,8 @@
 import { TaskStatus, TaskPriority, Prisma } from '@prisma/client';
 import { BaseService } from '@/common/BaseService';
 import ApiError from '@/utils/ApiError';
+import notificationService from '@/modules/notifications/notification.service';
+import { NotificationType } from '@prisma/client';
 
 // ─────────────────────────────────────────
 // TYPES
@@ -304,6 +306,17 @@ class TaskService extends BaseService {
 
     await this.maybeAdvanceOnboarding(organizationId);
 
+    if (dto.assignedTo) {
+  await notificationService.createNotification({
+    userId: dto.assignedTo,
+    organizationId,
+    type: NotificationType.TASK_ASSIGNED,
+    title: 'Task assigned',
+    message: `You have been assigned "${task.title}"`,
+    metadata: { taskId: task.id },
+  });
+}
+
     return { task };
   }
 
@@ -395,101 +408,112 @@ class TaskService extends BaseService {
   /**
    * Update a task's fields. Validates assignee and parent if provided.
    */
- async update(
-  userId: string,
-  organizationId: string,
-  taskId: string,
-  dto: UpdateTaskDto,
-  memberRole: string,
-) {
-  this.log('Updating task', { userId, organizationId, taskId });
+  async update(
+    userId: string,
+    organizationId: string,
+    taskId: string,
+    dto: UpdateTaskDto,
+    memberRole: string,
+  ) {
+    this.log('Updating task', { userId, organizationId, taskId });
 
-  const task = await this.verifyTaskExists(organizationId, taskId);
+    const task = await this.verifyTaskExists(organizationId, taskId);
+    const oldAssignee = task.assignedTo;
+    const isCreator = task.createdBy === userId;
+    const isAdmin = ['OWNER', 'ADMIN'].includes(memberRole);
 
-  const isCreator = task.createdBy === userId;
-  const isAdmin = ['OWNER', 'ADMIN'].includes(memberRole);
+    // Check if user is an assignee via TaskAssignee table
+    const isAssignee = await this.prisma.taskAssignee.findFirst({
+      where: { taskId, userId },
+    });
 
-  // Check if user is an assignee via TaskAssignee table
-  const isAssignee = await this.prisma.taskAssignee.findFirst({
-    where: { taskId, userId },
-  });
+    // ─────────────────────────────────────────
+    // STATUS-ONLY UPDATE
+    // Assignees, watchers, creator, OWNER/ADMIN can update status
+    // ─────────────────────────────────────────
+    const isStatusOnlyUpdate =
+      Object.keys(dto).length === 1 && dto.status !== undefined;
 
-  // ─────────────────────────────────────────
-  // STATUS-ONLY UPDATE
-  // Assignees, watchers, creator, OWNER/ADMIN can update status
-  // ─────────────────────────────────────────
-  const isStatusOnlyUpdate =
-    Object.keys(dto).length === 1 && dto.status !== undefined;
+    if (isStatusOnlyUpdate) {
+      // Check watcher if not creator/assignee/admin
+      if (!isCreator && !isAssignee && !isAdmin) {
+        const isWatcher = await this.prisma.taskWatcher.findUnique({
+          where: { taskId_userId: { taskId, userId } },
+        });
 
-  if (isStatusOnlyUpdate) {
-    // Check watcher if not creator/assignee/admin
-    if (!isCreator && !isAssignee && !isAdmin) {
-      const isWatcher = await this.prisma.taskWatcher.findUnique({
-        where: { taskId_userId: { taskId, userId } },
-      });
-
-      if (!isWatcher) {
+        if (!isWatcher) {
+          throw ApiError.forbidden(
+            'Only task assignees, creator, watchers, or admins can update task status',
+          );
+        }
+      }
+    } else {
+      // ─────────────────────────────────────────
+      // FULL UPDATE (title, description, priority etc.)
+      // Only creator, current assignee, or OWNER/ADMIN
+      // Random members CANNOT edit task details
+      // ─────────────────────────────────────────
+      if (!isCreator && !isAssignee && !isAdmin) {
         throw ApiError.forbidden(
-          'Only task assignees, creator, watchers, or admins can update task status',
+          'Only the task creator, an assignee, or an org admin can edit task details',
         );
       }
     }
-  } else {
-    // ─────────────────────────────────────────
-    // FULL UPDATE (title, description, priority etc.)
-    // Only creator, current assignee, or OWNER/ADMIN
-    // Random members CANNOT edit task details
-    // ─────────────────────────────────────────
-    if (!isCreator && !isAssignee && !isAdmin) {
-      throw ApiError.forbidden(
-        'Only the task creator, an assignee, or an org admin can edit task details',
-      );
+
+    if (dto.assignedTo) {
+      await this.verifyAssignee(organizationId, dto.assignedTo);
     }
-  }
 
-  if (dto.assignedTo) {
-    await this.verifyAssignee(organizationId, dto.assignedTo);
-  }
-
-  if (dto.parentTaskId) {
-    if (dto.parentTaskId === taskId) {
-      throw ApiError.badRequest('A task cannot be its own parent');
+    if (dto.parentTaskId) {
+      if (dto.parentTaskId === taskId) {
+        throw ApiError.badRequest('A task cannot be its own parent');
+      }
+      await this.verifyTaskExists(organizationId, dto.parentTaskId);
     }
-    await this.verifyTaskExists(organizationId, dto.parentTaskId);
-  }
 
-  const updatedTask = await this.prisma.$transaction(async (tx) => {
-    const updated = await tx.task.update({
-      where: { id: taskId },
-      data: {
-        ...dto,
-        dueDate:
-          dto.dueDate !== undefined
-            ? dto.dueDate ? new Date(dto.dueDate) : null
-            : undefined,
-      },
-      select: TASK_SELECT,
-    });
-
-    await tx.activityLog.create({
-      data: {
-        organizationId,
-        userId,
-        action: 'TASK_UPDATED',
-        resourceType: 'TASK',
-        resourceId: taskId,
-        metadata: {
-          changes: Object.keys(dto),
-          title: updated.title,
+    const updatedTask = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.task.update({
+        where: { id: taskId },
+        data: {
+          ...dto,
+          dueDate:
+            dto.dueDate !== undefined
+              ? dto.dueDate ? new Date(dto.dueDate) : null
+              : undefined,
         },
-      },
+        select: TASK_SELECT,
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId,
+          userId,
+          action: 'TASK_UPDATED',
+          resourceType: 'TASK',
+          resourceId: taskId,
+          metadata: {
+            changes: Object.keys(dto),
+            title: updated.title,
+          },
+        },
+      });
+
+      return updated;
     });
 
-    return updated;
-  });
+    if (dto.assignedTo && dto.assignedTo !== oldAssignee) {
+      await notificationService.createNotification({
+        userId: dto.assignedTo,
+        organizationId,
+        type: NotificationType.TASK_ASSIGNED,
+        title: 'Task assigned',
+        message: `You have been assigned "${updatedTask.title}"`,
+        metadata: { taskId },
+      });
+    }
 
-  return { task: updatedTask };
-}
+    return { task: updatedTask };
+  }
 
   /**
    * Hard-delete a task and cascade all children (DB cascade handles it).
@@ -649,6 +673,15 @@ AND their subtasks
           },
         },
       });
+    });
+
+    await notificationService.createNotification({
+      userId: targetUserId,
+      organizationId,
+      type: NotificationType.TASK_ASSIGNED,
+      title: 'New task assigned to you',
+      message: `You have been assigned a new task`,
+      metadata: { taskId },
     });
 
     return { message: 'Task assigned successfully' };
@@ -1138,6 +1171,22 @@ BUT is not necessarily assigned to the task
 
       return created;
     });
+
+    const taskData = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      select: { assignedTo: true },
+    });
+
+    if (taskData?.assignedTo) {
+      await notificationService.createNotification({
+        userId: taskData.assignedTo,
+        organizationId,
+        type: NotificationType.COMMENT_ADDED,
+        title: 'New comment on task',
+        message: `Someone commented on your task`,
+        metadata: { taskId },
+      });
+    }
 
     return { comment };
   }
