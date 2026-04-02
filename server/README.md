@@ -2019,6 +2019,204 @@ The subtask inherits the parent's `projectId` automatically.
 | 400 | `assignedTo` is not an active org member |
 | 404 | Parent task not found |
 
+### Member Endpoints
+
+> All endpoints require `Authorization: Bearer <accessToken>` header.
+
+---
+
+#### GET `/organizations/:id/members` 🔒
+List all organization members with pagination.
+Requires `member:read` permission. Any active member can list.
+
+**Query Params:**
+| Param | Type | Default | Description |
+|---|---|---|---|
+| `page` | number | 1 | Page number |
+| `limit` | number | 10 | Items per page |
+| `search` | string | — | Search by first name, last name, or email |
+| `role` | string | — | Filter: `OWNER`, `ADMIN`, `MEMBER`, `GUEST` |
+| `status` | string | `ACTIVE` | Filter: `ACTIVE`, `INVITED`, `SUSPENDED` |
+
+**Response includes:** user info, custom role assignments, join date, last login.
+Members are ordered: OWNER first, then ADMIN, then MEMBER, then GUEST.
+
+---
+
+#### GET `/organizations/:id/members/search?q=` 🔒
+Quick member search for autocomplete (task assignment, team addition etc).
+Returns max 20 results. Query must be at least 2 characters.
+Requires `member:read` permission.
+```
+GET /organizations/:id/members/search?q=jan
+```
+
+---
+
+#### POST `/organizations/:id/members/transfer-ownership` 🔒
+Transfer organization ownership. **OWNER only.**
+
+**Rules:**
+- Target must already be an active **ADMIN** (not MEMBER or GUEST)
+- Transfer is atomic — old OWNER → ADMIN, new OWNER → OWNER, `org.ownerId` updated
+- Cannot transfer to yourself
+
+**Request Body:**
+```json
+{
+  "newOwnerUserId": "uuid"
+}
+```
+
+**Errors:**
+| Status | Reason |
+|---|---|
+| 400 | Target is not an active ADMIN |
+| 400 | Cannot transfer to yourself |
+| 403 | Requester is not the current OWNER |
+
+---
+
+#### GET `/organizations/:id/members/:memberId` 🔒
+Get a single member with full details including custom role assignments and inviter info.
+
+---
+
+#### GET `/organizations/:id/members/:memberId/profile` 🔒
+Get a member's profile within the organization.
+
+**Response includes:**
+- Basic member info (role, join date)
+- Active assigned tasks (up to 10, ordered by due date)
+- Team memberships with team leader status
+- Recent activity (last 10 actions)
+- Task summary stats (total, todo, in_progress, review, done)
+
+---
+
+#### PATCH `/organizations/:id/members/:memberId/role` 🔒
+Update a member's base role. Requires `member:manage` permission.
+
+**Allowed target roles:** `ADMIN`, `MEMBER`, `GUEST`
+(Use `transfer-ownership` to change OWNER role)
+
+**Rules:**
+- Cannot change the OWNER's role
+- Cannot change your own role
+- ADMIN can change MEMBER/GUEST roles but cannot promote to ADMIN (OWNER only)
+
+**Request Body:**
+```json
+{
+  "role": "ADMIN"
+}
+```
+
+---
+
+#### DELETE `/organizations/:id/members/:memberId` 🔒
+Remove a member from the organization. Requires `member:remove` permission.
+
+**Who can remove whom:**
+| Requester | Can remove |
+|---|---|
+| OWNER | ADMIN, MEMBER, GUEST |
+| ADMIN | MEMBER, GUEST only |
+| Any member | Themselves (self-removal / leave org) |
+| Anyone | Cannot remove OWNER |
+
+> Removing yourself is logged as `MEMBER_LEFT`. Being removed is logged as `MEMBER_REMOVED`.
+
+---
+
+### Notification Endpoints
+
+> Requires `Authorization: Bearer <accessToken>` + `X-Organization-ID` header.
+
+---
+
+#### GET `/notifications` 🔒
+List notifications for the authenticated user in the current org.
+Unread notifications appear first, then read, ordered by recency.
+
+**Query Params:**
+| Param | Type | Default | Description |
+|---|---|---|---|
+| `page` | number | 1 | Page number |
+| `limit` | number | 20 | Items per page |
+| `unreadOnly` | boolean | false | Show only unread notifications |
+
+**Notification types:**
+`TASK_ASSIGNED`, `TASK_COMMENT`, `TASK_DUE_SOON`, `MEMBER_INVITED`,
+`MEMBER_JOINED`, `MEMBER_REMOVED`, `PROJECT_CREATED`, `PROJECT_ARCHIVED`,
+`MENTION`, `ORG_SUSPENDED`, `OWNERSHIP_TRANSFERRED`
+
+---
+
+#### GET `/notifications/unread-count` 🔒
+Get the count of unread notifications for the badge indicator.
+
+**Response: 200 OK**
+```json
+{
+  "success": true,
+  "data": { "unreadCount": 5 }
+}
+```
+
+---
+
+#### PATCH `/notifications/read-all` 🔒
+Mark all unread notifications as read for the current user in this org.
+
+**Response: 200 OK**
+```json
+{
+  "success": true,
+  "data": {
+    "markedCount": 5,
+    "message": "5 notifications marked as read"
+  }
+}
+```
+
+---
+
+#### PATCH `/notifications/:notificationId/read` 🔒
+Mark a single notification as read. No-op if already read.
+
+---
+
+#### DELETE `/notifications/:notificationId` 🔒
+Delete a single notification. User can only delete their own notifications.
+
+---
+
+### Activity Feed Endpoint
+
+#### GET `/activity` 🔒
+Get the organization activity feed from the audit log.
+Any active org member can view the activity feed.
+
+**Query Params:**
+| Param | Type | Description |
+|---|---|---|
+| `page` | number | Page number |
+| `limit` | number | Items per page (default: 20) |
+| `userId` | uuid | Filter by user who performed action |
+| `resourceType` | string | Filter by resource: `PROJECT`, `TASK`, `TEAM`, `MEMBER`, `INVITATION` |
+| `resourceId` | uuid | Filter by specific resource ID |
+
+**Examples:**
+```
+GET /activity                                     → All org activity
+GET /activity?userId=<uuid>                       → Activity by specific user
+GET /activity?resourceType=PROJECT                → All project activity
+GET /activity?resourceType=PROJECT&resourceId=<uuid> → Activity on one project
+```
+
+**Response includes:** action name, user who performed it, resource info, timestamp, metadata.
+
 ---
 
 ## Permission System
@@ -2260,6 +2458,8 @@ Attack 4: Wrong resource   → MEMBER editing another member's tasks
 | 14  | Project management Part 2 — members, stats, activity, favorites, duplication    | ✅ Done |
 | 15  | Task management — CRUD, filters, bulk operations, overdue endpoint              | ✅ Done |
 | 16  | Task comments, watchers, subtasks, activity log, TaskAssignee system            | ✅ Done |
+| 17  | Member management — list, profile, role update, remove, transfer ownership      | ✅ Done |
+| 18  | Notification system + Activity feed                                             | ✅ Done |
 ---
 
 ## Author
