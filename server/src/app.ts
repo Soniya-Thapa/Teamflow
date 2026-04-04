@@ -9,6 +9,7 @@ import { errorHandler, notFoundHandler } from '@/middleware/error.middleware';
 import logger from '@/utils/logger';
 import { envConfig } from './config/env.config';
 import '@/modules/email/email.processor';
+import cookieParser from 'cookie-parser';
 
 // Import routes
 import authRoutes from '@/modules/auth/auth.routes';
@@ -37,6 +38,8 @@ app.use(
     allowedHeaders: ['Content-Type', 'Authorization'],
   }),
 );
+
+app.use(cookieParser());
 
 // Body parser
 

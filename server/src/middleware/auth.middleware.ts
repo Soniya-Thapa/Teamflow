@@ -1,4 +1,7 @@
 
+
+// file :  auth.middleware.ts 
+
 import prisma from '@/config/database';
 import ApiError from '@/utils/ApiError';
 import jwtUtil from '@/utils/jwt.util';
@@ -9,14 +12,29 @@ import { Request, Response, NextFunction } from 'express';
 
 export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Get token from header
-    const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    //BEFORE COOKIE: 
+
+    // // Get token from header
+    // const authHeader = req.headers.authorization;
+
+    // if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    //   throw ApiError.unauthorized('No token provided');
+    // }
+
+    // const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    // -----------------------------------------------------------------------------
+
+    //AFTER COOKIE:
+
+    // Check cookie first, fall back to Authorization header (for API clients/Postman)
+    const token =
+      req.cookies?.access_token ||
+      req.headers.authorization?.substring(7);
+
+    if (!token) {
       throw ApiError.unauthorized('No token provided');
     }
-
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
     //Verify token 
     const payload = jwtUtil.verifyAccessToken(token);
@@ -54,10 +72,15 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 
 export const optionalAuth = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const authHeader = req.headers.authorization;
+    // const authHeader = req.headers.authorization;
 
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
+    // if (authHeader && authHeader.startsWith('Bearer ')) {
+    //   const token = authHeader.substring(7);
+    //   const payload = jwtUtil.verifyAccessToken(token);
+
+    const token = req.cookies?.access_token || req.headers.authorization?.substring(7);
+
+    if (token) {
       const payload = jwtUtil.verifyAccessToken(token);
 
       const user = await prisma.user.findUnique({

@@ -22,9 +22,12 @@ export const envConfig = {
   refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
 
   email: {
-    resendApiKey: process.env.RESEND_API_KEY || '',
-    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
-    fromName: process.env.EMAIL_FROM_NAME || 'TeamFlow',
+    smtpHost: process.env.SMTP_HOST || 'smtp.gmail.com',
+    smtpPort: Number(process.env.SMTP_PORT) || 587,
+    smtpUser: process.env.SMTP_USER || '',
+    smtpPass: process.env.SMTP_PASS || '',
+    from: process.env.SMTP_FROM || '',
+    fromName: process.env.SMTP_FROM_NAME || 'TeamFlow',
     frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
   },
 

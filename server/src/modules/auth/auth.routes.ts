@@ -5,7 +5,7 @@ import { validate } from "@/middleware/validation.middleware";
 import {
   changePasswordSchema,
   loginSchema,
-  refreshTokenSchema,
+  // refreshTokenSchema,
   registerSchema,
   forgotPasswordSchema,  
   resetPasswordSchema,   
@@ -26,7 +26,8 @@ router.post("/register", authRateLimit, validate(registerSchema), authController
 router.post('/login', authRateLimit, validate(loginSchema), authController.login);
 
 //POST /api/v1/auth/refresh-token
-router.post('/refresh-token', validate(refreshTokenSchema), authController.refreshToken);
+// router.post('/refresh-token', validate(refreshTokenSchema), authController.refreshToken);
+router.post('/refresh-token', authController.refreshToken); // ← no body validation needed
 
 //POST /api/v1/auth/forgot-password
 router.post('/forgot-password', authRateLimit, validate(forgotPasswordSchema), authController.forgotPassword);
@@ -38,6 +39,7 @@ router.post('/reset-password', authRateLimit, validate(resetPasswordSchema), aut
 
 //POST /api/v1/auth/logout
 router.post('/logout', authenticate, authController.logout);
+
 
 //GET /api/v1/auth/me
 router.get('/me', authenticate, authController.getProfile);
