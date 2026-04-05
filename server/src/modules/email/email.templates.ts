@@ -267,3 +267,26 @@ export const passwordResetEmail = (
     </p>
   `),
 });
+
+export const emailVerificationEmail = (
+  userName: string,
+  verifyUrl: string,
+): EmailTemplate => ({
+  subject: `Verify your TeamFlow email address`,
+  html: baseLayout(`
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:700;color:#111827;">
+      Verify your email
+    </h1>
+    <p style="margin:0 0 20px;font-size:15px;color:#6B7280;line-height:1.6;">
+      Hi <strong style="color:#374151;">${userName}</strong>, click the button below
+      to verify your email address and unlock full access to TeamFlow.
+    </p>
+    ${primaryButton(verifyUrl, 'Verify email address →')}
+    ${fallbackLink(verifyUrl)}
+    ${divider()}
+    <p style="margin:0;font-size:13px;color:#9CA3AF;">
+      This link expires in <strong>24 hours</strong>.
+      If you did not create a TeamFlow account, ignore this email.
+    </p>
+  `),
+});

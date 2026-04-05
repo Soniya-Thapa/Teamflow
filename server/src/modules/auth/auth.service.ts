@@ -100,6 +100,8 @@ class AuthService extends BaseService {
       orgName: 'TeamFlow',
     });
 
+    await this.sendVerificationEmail(user.id);
+
     // Generate tokens
     const tokens = await this.generateTokens(user.id, user.email);
 
@@ -433,6 +435,81 @@ class AuthService extends BaseService {
     return {
       message: 'Password reset successfully. Please log in with your new password.'
     };
+  }
+
+  /**
+ * Send email verification link.
+ * Uses the same hashed token pattern as password reset.
+ * Token stored as hash in DB, raw token sent in email.
+ */
+  async sendVerificationEmail(userId: string) {
+    this.log('Sending verification email', { userId });
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, firstName: true, isEmailVerified: true },
+    });
+
+    if (!user) throw ApiError.notFound('User not found');
+
+    if (user.isEmailVerified) {
+      throw ApiError.badRequest('Email is already verified');
+    }
+
+    // Reuse PasswordResetToken table — same pattern, different purpose
+    const rawToken = passwordUtil.generateResetToken();
+    const tokenHash = passwordUtil.hashResetToken(rawToken);
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24); // 24 hour expiry
+
+    // Delete any existing verification tokens for this user
+    await this.prisma.passwordResetToken.deleteMany({
+      where: { userId, used: false },
+    });
+
+    await this.prisma.passwordResetToken.create({
+      data: { userId, tokenHash, expiresAt },
+    });
+
+    // Queue email
+    await addEmailJob(EmailJobType.EMAIL_VERIFICATION, {
+      to: user.email,
+      userName: user.firstName,
+      verificationToken: rawToken,
+    });
+
+    return { message: 'Verification email sent' };
+  }
+
+  /**
+   * Verify email using the token from the email link.
+   */
+  async verifyEmail(rawToken: string) {
+    this.log('Verifying email');
+
+    const tokenHash = passwordUtil.hashResetToken(rawToken);
+
+    const tokenRecord = await this.prisma.passwordResetToken.findUnique({
+      where: { tokenHash },
+    });
+
+    if (!tokenRecord || tokenRecord.used || new Date() > tokenRecord.expiresAt) {
+      throw ApiError.badRequest('Invalid or expired verification link');
+    }
+
+    await this.prisma.user.update({
+      where: { id: tokenRecord.userId },
+      data: { isEmailVerified: true },
+    });
+
+    await this.prisma.passwordResetToken.update({
+      where: { id: tokenRecord.id },
+      data: { used: true },
+    });
+
+    this.log('Email verified', { userId: tokenRecord.userId });
+
+    return { message: 'Email verified successfully' };
   }
 }
 

@@ -47,4 +47,7 @@ router.get('/me', authenticate, authController.getProfile);
 //POST /api/v1/auth/change-password
 router.post('/change-password', authenticate, validate(changePasswordSchema), authController.changePassword);
 
+router.post('/send-verification', authenticate, authController.sendVerificationEmail);
+router.get('/verify-email', authController.verifyEmail); // public — token in query
+
 export default router;

@@ -47,6 +47,7 @@ import {
   InvitationJobData,
   WelcomeJobData,
   PasswordResetJobData,
+  EmailVerificationJobData,
 } from './email.queue';
 
 // ─────────────────────────────────────────
@@ -101,6 +102,15 @@ emailQueue.process(5, async (job: Job<EmailJobData>) => {
 
       if (!result.success) {
         throw new Error(`Password reset email failed: ${result.error}`);
+      }
+      break;
+    }
+
+    case EmailJobType.EMAIL_VERIFICATION: {
+      const { to, userName, verificationToken } = data as EmailVerificationJobData;
+      const result = await emailService.sendEmailVerification(to, userName, verificationToken);
+      if (!result.success) {
+        throw new Error(`Verification email failed: ${result.error}`);
       }
       break;
     }

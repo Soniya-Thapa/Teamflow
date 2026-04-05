@@ -10,6 +10,7 @@ import {
   invitationEmail,
   welcomeEmail,
   passwordResetEmail,
+  emailVerificationEmail,
 } from './email.templates';
 
 export interface EmailResult {
@@ -100,6 +101,16 @@ class EmailService {
     const template = passwordResetEmail(userName, resetUrl);
     return this.sendRaw({ to, ...template });
   }
+
+  async sendEmailVerification(
+  to: string,
+  userName: string,
+  verificationToken: string,
+): Promise<EmailResult> {
+  const verifyUrl = `${envConfig.email.frontendUrl}/verify-email?token=${verificationToken}`;
+  const template = emailVerificationEmail(userName, verifyUrl);
+  return this.sendRaw({ to, ...template });
+}
 }
 
 export default new EmailService();

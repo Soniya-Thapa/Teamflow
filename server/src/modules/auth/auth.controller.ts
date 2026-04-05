@@ -55,7 +55,7 @@ class AuthController extends BaseController {
   //   return this.sendCreated(res,result, "Registration Successful");
   // });
 
-   register = this.asyncHandler(async (req: Request, res: Response) => {
+  register = this.asyncHandler(async (req: Request, res: Response) => {
     const { firstName, lastName, email, password } = req.body;
 
     const result = await authService.register({
@@ -81,7 +81,7 @@ class AuthController extends BaseController {
   //   return this.sendSuccess(res, result , "Login Successful.");
   // });
 
-    login = this.asyncHandler(async (req: Request, res: Response) => {
+  login = this.asyncHandler(async (req: Request, res: Response) => {
     const { email, password } = req.body;
 
     const result = await authService.login(email, password);
@@ -141,7 +141,7 @@ class AuthController extends BaseController {
   //   return this.sendSuccess(res, null, "Logout Successful.");
   // });
 
-    logout = this.asyncHandler(async (req: Request, res: Response) => {
+  logout = this.asyncHandler(async (req: Request, res: Response) => {
     const userId = req.userId!;
 
     // Read refresh token from cookie — not from req.body
@@ -154,7 +154,7 @@ class AuthController extends BaseController {
 
     return this.sendSuccess(res, null, "Logout Successful.");
   });
-  
+
   //-----------------------------GET PROFILE-----------------------------
 
   //GET /api/v1/auth/me
@@ -202,6 +202,21 @@ class AuthController extends BaseController {
 
     return this.sendSuccess(res, result, 'Password reset successful.');
   });
+
+  // POST /api/v1/auth/send-verification
+  sendVerificationEmail = this.asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.userId!;
+    const result = await authService.sendVerificationEmail(userId);
+    return this.sendSuccess(res, result, 'Verification email sent');
+  });
+
+  // GET /api/v1/auth/verify-email?token=...
+  verifyEmail = this.asyncHandler(async (req: Request, res: Response) => {
+    const { token } = req.query as { token: string };
+    const result = await authService.verifyEmail(token);
+    return this.sendSuccess(res, result, 'Email verified successfully');
+  });
+
 }
 
 export default new AuthController();

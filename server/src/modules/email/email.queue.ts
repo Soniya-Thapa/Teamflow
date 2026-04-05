@@ -32,6 +32,7 @@ export enum EmailJobType {
   INVITATION = 'invitation',
   WELCOME = 'welcome',
   PASSWORD_RESET = 'passwordReset',
+  EMAIL_VERIFICATION = 'emailVerification',
 }
 
 export interface InvitationJobData {
@@ -54,10 +55,17 @@ export interface PasswordResetJobData {
   resetToken: string;
 }
 
+export interface EmailVerificationJobData {
+  to: string;
+  userName: string;
+  verificationToken: string;
+}
+
 export type EmailJobData =
   | { type: EmailJobType.INVITATION; data: InvitationJobData }
   | { type: EmailJobType.WELCOME; data: WelcomeJobData }
-  | { type: EmailJobType.PASSWORD_RESET; data: PasswordResetJobData };
+  | { type: EmailJobType.PASSWORD_RESET; data: PasswordResetJobData }
+  | { type: EmailJobType.EMAIL_VERIFICATION; data: EmailVerificationJobData }; 
 
 // ─────────────────────────────────────────
 // QUEUE CONFIGURATION
@@ -129,7 +137,7 @@ emailQueue.on('error', (err) => {
  */
 export const addEmailJob = async (
   type: EmailJobType,
-  data: InvitationJobData | WelcomeJobData | PasswordResetJobData
+  data: InvitationJobData | WelcomeJobData | PasswordResetJobData | EmailVerificationJobData 
 ): Promise<void> => {
   try {
     // 👉 Pushes job into Redis
@@ -152,6 +160,8 @@ export const addEmailJob = async (
     logger.error('Failed to queue email job', { type, error: message });
   }
 };
+
+
 
 // User registers:
 // auth.service.ts
