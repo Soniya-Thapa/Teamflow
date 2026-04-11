@@ -69,11 +69,10 @@ function PasswordStrength({ password }: { password: string }) {
             <X size={12} className="text-slate-300 shrink-0" />
           )}
           <span
-            className={`text-xs ${
-              rule.test(password)
-                ? 'text-green-600 dark:text-green-400'
-                : 'text-slate-400'
-            }`}
+            className={`text-xs ${rule.test(password)
+              ? 'text-green-600 dark:text-green-400'
+              : 'text-slate-400'
+              }`}
           >
             {rule.label}
           </span>
@@ -92,6 +91,7 @@ export default function RegisterPage() {
   const dispatch = useAppDispatch();
   const { isLoading, error } = useAppSelector((state) => state.auth);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordValue, setPasswordValue] = useState('');
 
   useEffect(() => {
@@ -130,7 +130,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <Card className="shadow-lg border-indigo-200 dark:border-indigo-200">
+    <Card className="shadow-lg border-slate-200 dark:border-slate-800">
       <CardHeader className="space-y-1 pb-4">
         <CardTitle className="text-2xl font-bold tracking-tight">
           Create your account
@@ -214,7 +214,7 @@ export default function RegisterPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-gray-600 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                 tabIndex={-1}
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -229,14 +229,24 @@ export default function RegisterPage() {
           {/* Confirm Password */}
           <div className="space-y-2">
             <Label htmlFor="confirmPassword">Confirm password</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              placeholder="••••••••"
-              autoComplete="new-password"
-              {...register('confirmPassword')}
-              className={errors.confirmPassword ? 'border-red-500' : ''}
-            />
+            <div className="relative">
+              <Input
+                id="confirmPassword"
+                type={showConfirmPassword ? 'text' : 'password'}
+                placeholder="••••••••"
+                autoComplete="new-password"
+                {...register('confirmPassword')}
+                className={errors.confirmPassword ? 'border-red-500' : ''}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                tabIndex={-1}
+              >
+                {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
             {errors.confirmPassword && (
               <p className="text-xs text-red-500">
                 {errors.confirmPassword.message}
@@ -261,7 +271,7 @@ export default function RegisterPage() {
           </Button>
         </form>
 
-        <div className="mt-6 text-center text-sm text-gray-600 dark:text-slate-400">
+        <div className="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
           Already have an account?{' '}
           <Link
             href="/login"

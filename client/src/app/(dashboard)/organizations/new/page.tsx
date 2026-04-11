@@ -129,12 +129,12 @@ export default function NewOrganizationPage() {
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
           Create organization
         </h1>
-        <p className="text-gray-600 dark:text-slate-400 mt-1 text-sm">
+        <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">
           Set up a workspace for your team
         </p>
       </div>
 
-      <Card className="border-indigo-200 dark:border-indigo-200">
+      <Card className="border-slate-200 dark:border-slate-800">
         <CardHeader className="pb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-950 rounded-xl flex items-center justify-center">

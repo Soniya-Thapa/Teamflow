@@ -60,7 +60,7 @@ export default function LoginPage() {
   };
 
   return (
-    <Card className="shadow-lg border-indigo-200 dark:border-indigo-200">
+    <Card className="shadow-lg border-slate-200 dark:border-slate-800">
       <CardHeader className="space-y-1 pb-4">
         <CardTitle className="text-2xl font-bold tracking-tight">
           Welcome back
@@ -121,7 +121,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-gray-600 dark:hover:text-slate-300 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
                 tabIndex={-1}
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}

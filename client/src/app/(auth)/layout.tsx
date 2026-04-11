@@ -22,7 +22,7 @@ export default function AuthLayout({
               Team<span className="text-indigo-600">Flow</span>
             </span>
           </div>
-          <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">
+          <p className="text-sm text-gray-500 dark:text-slate-900 mt-1">
             Project management for modern teams
           </p>
         </div>

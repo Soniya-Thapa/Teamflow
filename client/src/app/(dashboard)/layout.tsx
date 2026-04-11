@@ -34,17 +34,17 @@ export default function DashboardLayout({
   if (isLoading) {
     return (
       <div className="flex h-screen bg-slate-50 dark:bg-slate-950">
-        <aside className="hidden lg:block w-60 bg-white dark:bg-slate-900 border-r border-indigo-200 dark:border-indigo-200">
+        <aside className="hidden lg:block w-60 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800">
           <SkeletonSidebar />
         </aside>
         <div className="flex-1 flex flex-col">
-          <div className="h-14 bg-white dark:bg-slate-900 border-b border-indigo-200 dark:border-indigo-200" />
+          <div className="h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800" />
           <main className="flex-1 p-6">
             <div className="space-y-4">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div
                   key={i}
-                  className="h-24 bg-slate-200 dark:bg-indigo-50 rounded-xl animate-pulse"
+                  className="h-24 bg-slate-200 dark:bg-slate-800 rounded-xl animate-pulse"
                 />
               ))}
             </div>

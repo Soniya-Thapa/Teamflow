@@ -36,9 +36,9 @@ function StatCard({
   subtitle?: string;
 }) {
   return (
-    <Card className="border-indigo-200 dark:border-indigo-200 hover:shadow-md transition-shadow">
+    <Card className="border-slate-200 dark:border-slate-800 hover:shadow-md transition-shadow">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium text-gray-600 dark:text-slate-400">
+        <CardTitle className="text-sm font-medium text-slate-500 dark:text-slate-400">
           {title}
         </CardTitle>
         <div className={`p-2 rounded-lg ${color}`}>
@@ -50,7 +50,7 @@ function StatCard({
           {value}
         </p>
         {subtitle && (
-          <p className="text-xs text-slate-400 dark:text-gray-600 mt-1">
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
             {subtitle}
           </p>
         )}
@@ -84,7 +84,7 @@ export default function DashboardPage() {
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">
               No organization yet
             </h2>
-            <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
               Create or join an organization to get started
             </p>
           </div>
@@ -109,7 +109,7 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
             Good day, {user?.firstName}! 👋
           </h1>
-          <p className="text-gray-600 dark:text-slate-400 mt-1 text-sm">
+          <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">
             {activeOrg
               ? `Working in ${activeOrg.name} · ${activeOrg.plan} plan`
               : 'Loading workspace...'}
@@ -176,7 +176,7 @@ export default function DashboardPage() {
       {/* Quick actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card
-          className="border-indigo-200 dark:border-indigo-200 cursor-pointer hover:shadow-md transition-shadow group"
+          className="border-slate-200 dark:border-slate-800 cursor-pointer hover:shadow-md transition-shadow group"
           onClick={() => router.push('/projects')}
         >
           <CardContent className="pt-6 pb-5 flex items-center justify-between">
@@ -188,20 +188,20 @@ export default function DashboardPage() {
                 <p className="font-semibold text-slate-900 dark:text-white">
                   Projects
                 </p>
-                <p className="text-xs text-gray-600 dark:text-slate-400">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   Manage your work
                 </p>
               </div>
             </div>
             <ArrowRight
               size={16}
-              className="text-slate-300 group-hover:text-gray-600 transition-colors"
+              className="text-slate-300 group-hover:text-slate-500 transition-colors"
             />
           </CardContent>
         </Card>
 
         <Card
-          className="border-indigo-200 dark:border-indigo-200 cursor-pointer hover:shadow-md transition-shadow group"
+          className="border-slate-200 dark:border-slate-800 cursor-pointer hover:shadow-md transition-shadow group"
           onClick={() => router.push('/tasks')}
         >
           <CardContent className="pt-6 pb-5 flex items-center justify-between">
@@ -213,14 +213,14 @@ export default function DashboardPage() {
                 <p className="font-semibold text-slate-900 dark:text-white">
                   My Tasks
                 </p>
-                <p className="text-xs text-gray-600 dark:text-slate-400">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   View assigned work
                 </p>
               </div>
             </div>
             <ArrowRight
               size={16}
-              className="text-slate-300 group-hover:text-gray-600 transition-colors"
+              className="text-slate-300 group-hover:text-slate-500 transition-colors"
             />
           </CardContent>
         </Card>
@@ -228,7 +228,7 @@ export default function DashboardPage() {
 
       {/* Plan usage */}
       {activeOrg && (
-        <Card className="border-indigo-200 dark:border-indigo-200">
+        <Card className="border-slate-200 dark:border-slate-800">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">
@@ -241,25 +241,25 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
-              <div className="flex justify-between text-xs text-gray-600 dark:text-slate-400 mb-1">
+              <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
                 <span>Members</span>
                 <span>?/{activeOrg.maxUsers}</span>
               </div>
-              <div className="h-1.5 bg-slate-100 dark:bg-indigo-50 rounded-full overflow-hidden">
+              <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-[#f4f4f4]0 rounded-full"
+                  className="h-full bg-indigo-500 rounded-full"
                   style={{ width: '20%' }}
                 />
               </div>
             </div>
             <div>
-              <div className="flex justify-between text-xs text-gray-600 dark:text-slate-400 mb-1">
+              <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
                 <span>Projects</span>
                 <span>?/{activeOrg.maxProjects}</span>
               </div>
-              <div className="h-1.5 bg-slate-100 dark:bg-indigo-50 rounded-full overflow-hidden">
+              <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-[#f4f4f4]0 rounded-full"
+                  className="h-full bg-indigo-500 rounded-full"
                   style={{ width: '10%' }}
                 />
               </div>

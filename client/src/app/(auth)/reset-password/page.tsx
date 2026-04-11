@@ -93,7 +93,7 @@ function ResetPasswordForm() {
   }
 
   return (
-    <Card className="shadow-lg border-indigo-200 dark:border-indigo-200">
+    <Card className="shadow-lg border-slate-200 dark:border-slate-800">
       <CardHeader className="space-y-1 pb-4">
         <div className="flex items-center gap-2">
           <ShieldCheck className="text-indigo-600" size={20} />
@@ -130,7 +130,7 @@ function ResetPasswordForm() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-gray-600 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                 tabIndex={-1}
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}

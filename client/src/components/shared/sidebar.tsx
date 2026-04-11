@@ -79,7 +79,7 @@ function OrgSwitcher() {
     return (
       <Link
         href="/organizations/new"
-        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-slate-300 dark:border-slate-600 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 transition-colors text-sm"
+        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-slate-300 dark:border-slate-600 text-slate-500 hover:border-indigo-400 hover:text-indigo-600 transition-colors text-sm"
       >
         <Plus size={14} />
         <span>Create organization</span>
@@ -90,7 +90,7 @@ function OrgSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 dark:bg-indigo-50 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors group">
+        <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors group">
           <div className="w-6 h-6 bg-indigo-600 rounded-md flex items-center justify-center shrink-0">
             <Building2 size={12} className="text-white" />
           </div>
@@ -98,7 +98,7 @@ function OrgSwitcher() {
             <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
               {activeOrg.name}
             </p>
-            <p className="text-xs text-gray-600 dark:text-slate-400 truncate">
+            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
               {activeOrg.plan}
             </p>
           </div>
@@ -110,7 +110,7 @@ function OrgSwitcher() {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="start" className="w-56">
-        <DropdownMenuLabel className="text-xs text-gray-600 font-normal">
+        <DropdownMenuLabel className="text-xs text-slate-500 font-normal">
           Your organizations
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -166,7 +166,7 @@ function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-100 transition-colors">
+        <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
           <Avatar className="h-7 w-7">
             <AvatarFallback className="text-xs bg-indigo-600 text-white">
               {initials}
@@ -176,7 +176,7 @@ function UserMenu() {
             <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
               {user?.firstName} {user?.lastName}
             </p>
-            <p className="text-xs text-gray-600 dark:text-slate-400 truncate">
+            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
               {user?.email}
             </p>
           </div>
@@ -186,7 +186,7 @@ function UserMenu() {
       <DropdownMenuContent align="start" className="w-56">
         <DropdownMenuLabel className="font-normal">
           <p className="font-medium text-sm">{user?.firstName} {user?.lastName}</p>
-          <p className="text-xs text-gray-600">{user?.email}</p>
+          <p className="text-xs text-slate-500">{user?.email}</p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem
@@ -235,7 +235,7 @@ function NavItem({
         'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
         isActive
           ? 'bg-[#f4f4f4] dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300'
-          : 'text-gray-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-100 hover:text-slate-900 dark:hover:text-white',
+          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white',
       )}
     >
       <Icon
@@ -243,7 +243,7 @@ function NavItem({
         className={cn(
           isActive
             ? 'text-indigo-600 dark:text-indigo-400'
-            : 'text-slate-400 dark:text-gray-600',
+            : 'text-slate-400 dark:text-slate-500',
         )}
       />
       {label}
@@ -260,7 +260,7 @@ function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
     <div className="flex flex-col h-full">
 
       {/* Logo */}
-      <div className="px-4 py-5 border-b border-indigo-200 dark:border-indigo-200">
+      <div className="px-4 py-5 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-xs">TF</span>
@@ -272,7 +272,7 @@ function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
       </div>
 
       {/* Org Switcher */}
-      <div className="px-3 py-3 border-b border-indigo-200 dark:border-indigo-200">
+      <div className="px-3 py-3 border-b border-slate-200 dark:border-slate-800">
         <OrgSwitcher />
       </div>
 
@@ -288,7 +288,7 @@ function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
       </nav>
 
       {/* User Menu */}
-      <div className="px-3 py-3 border-t border-indigo-200 dark:border-indigo-200">
+      <div className="px-3 py-3 border-t border-slate-200 dark:border-slate-800">
         <UserMenu />
       </div>
     </div>
@@ -306,16 +306,16 @@ export function Sidebar() {
   return (
     <>
       {/* ── DESKTOP SIDEBAR ── */}
-      <aside className="hidden lg:flex flex-col w-60 shrink-0 bg-white dark:bg-slate-900 border-r border-indigo-200 dark:border-indigo-200 h-screen sticky top-0">
+      <aside className="hidden lg:flex flex-col w-60 shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 h-screen sticky top-0">
         <SidebarContent />
       </aside>
 
       {/* ── MOBILE MENU BUTTON ── */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-40 p-2 bg-white dark:bg-slate-900 rounded-lg border border-indigo-200 dark:border-indigo-200 shadow-sm"
+        className="lg:hidden fixed top-4 left-4 z-40 p-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm"
       >
-        <Menu size={18} className="text-gray-600 dark:text-slate-400" />
+        <Menu size={18} className="text-slate-600 dark:text-slate-400" />
       </button>
 
       {/* ── MOBILE OVERLAY ── */}
@@ -329,15 +329,15 @@ export function Sidebar() {
       {/* ── MOBILE DRAWER ── */}
       <aside
         className={cn(
-          'lg:hidden fixed top-0 left-0 z-50 w-72 h-screen bg-white dark:bg-slate-900 border-r border-indigo-200 dark:border-indigo-200 transition-transform duration-200',
+          'lg:hidden fixed top-0 left-0 z-50 w-72 h-screen bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-transform duration-200',
           mobileOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
         <button
           onClick={() => setMobileOpen(false)}
-          className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-100"
+          className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
         >
-          <X size={16} className="text-gray-600" />
+          <X size={16} className="text-slate-500" />
         </button>
         <SidebarContent onNavClick={() => setMobileOpen(false)} />
       </aside>

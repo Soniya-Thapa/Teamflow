@@ -48,7 +48,7 @@ export default function ForgotPasswordPage() {
 
   if (submitted) {
     return (
-      <Card className="shadow-lg border-indigo-200 dark:border-indigo-200">
+      <Card className="shadow-lg border-slate-200 dark:border-slate-800">
         <CardContent className="pt-8 pb-6 text-center space-y-4">
           <div className="w-14 h-14 bg-green-100 dark:bg-green-950 rounded-2xl flex items-center justify-center mx-auto">
             <MailCheck className="text-green-600 dark:text-green-400" size={28} />
@@ -57,7 +57,7 @@ export default function ForgotPasswordPage() {
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">
               Check your inbox
             </h2>
-            <p className="text-sm text-gray-600 dark:text-slate-400">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               If that email exists in our system, a reset link is on its way.
             </p>
           </div>
@@ -73,7 +73,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <Card className="shadow-lg border-indigo-200 dark:border-indigo-200">
+    <Card className="shadow-lg border-slate-200 dark:border-slate-800">
       <CardHeader className="space-y-1 pb-4">
         <CardTitle className="text-2xl font-bold tracking-tight">
           Reset your password

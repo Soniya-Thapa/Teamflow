@@ -33,14 +33,14 @@ export function Topbar() {
   const { activeOrg } = useAppSelector((state) => state.organization);
 
   return (
-    <header className="h-14 bg-white dark:bg-slate-900 border-b border-indigo-200 dark:border-indigo-200 flex items-center justify-between px-6 shrink-0">
+    <header className="h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 shrink-0">
 
       {/* Breadcrumbs */}
       <nav className="flex items-center gap-1.5 text-sm ml-10 lg:ml-0">
         {breadcrumbs.map((crumb, i) => (
           <span key={crumb.href} className="flex items-center gap-1.5">
             {i > 0 && (
-              <span className="text-slate-300 dark:text-gray-600">/</span>
+              <span className="text-slate-300 dark:text-slate-600">/</span>
             )}
             {crumb.isLast ? (
               <span className="font-medium text-slate-900 dark:text-white">
@@ -67,7 +67,7 @@ export function Topbar() {
           className="relative"
           onClick={() => router.push('/notifications')}
         >
-          <Bell size={16} className="text-gray-600" />
+          <Bell size={16} className="text-slate-500" />
           {/* Unread badge — wired up on Day 26 */}
           <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-indigo-600 rounded-full" />
         </Button>
