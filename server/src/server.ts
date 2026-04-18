@@ -1,28 +1,43 @@
 
+import http from 'http';
 import app from './app';
 import logger from '@/utils/logger';
 import prisma from '@/config/database';
 import redis from '@/config/redis';
 import { envConfig } from './config/env.config';
 import { setupPrismaTenantMiddleware } from './middleware/tenant.middleware';
+import { initializeSocket } from './config/socket';
 
 //Setup Prisma tenant middleware
 setupPrismaTenantMiddleware();
 
 const PORT = envConfig.portNumber;
 
-const server = app.listen(PORT, () => {
-  logger.info(`🚀 TeamFlow API is running on port ${PORT}`);
-  logger.info(`📝 Environment: ${envConfig.nodeEnv}`);
-  logger.info(`🔗 API: http://localhost:${PORT}${envConfig.apiPrefix}`);
-  logger.info(`💚 Health: http://localhost:${PORT}/health`);
+// Create HTTP server wrapping Express app
+const httpServer = http.createServer(app);
+
+// Initialize Socket.io on the same HTTP server
+initializeSocket(httpServer);
+
+httpServer.listen(PORT, () => {
+  logger.info(`Server running on port ${PORT}`);
+  logger.info(`Environment: ${envConfig.nodeEnv}`);
+  logger.info(`API: http://localhost:${PORT}${envConfig.apiPrefix}`);
+  logger.info(`WebSocket: ws://localhost:${PORT}`);
 });
+
+// const server = app.listen(PORT, () => {
+//   logger.info(`🚀 TeamFlow API is running on port ${PORT}`);
+//   logger.info(`📝 Environment: ${envConfig.nodeEnv}`);
+//   logger.info(`🔗 API: http://localhost:${PORT}${envConfig.apiPrefix}`);
+//   logger.info(`💚 Health: http://localhost:${PORT}/health`);
+// });
 
 // Graceful shutdown handler
 const gracefulShutdown = async (signal: string) => {
   logger.info(`${signal} received. Shutting down gracefully...`);
 
-  server.close(async () => {
+  httpServer.close(async () => {
     logger.info('🔴 HTTP server closed');
 
     try {
@@ -64,5 +79,5 @@ process.on('uncaughtException', (error: Error) => {
   gracefulShutdown('UNCAUGHT_EXCEPTION');
 });
 
-export default server;
+export default httpServer;
 

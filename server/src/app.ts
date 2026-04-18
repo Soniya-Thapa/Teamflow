@@ -23,6 +23,9 @@ import taskRoutes from '@/modules/tasks/task.routes';
 import memberRoutes from '@/modules/members/member.routes';
 import notificationRoutes from '@/modules/notifications/notification.routes';
 import activityRoutes from '@/modules/notifications/activity.routes';
+import searchRoutes from '@/modules/search/search.routes';
+import attachmentRoutes from '@/modules/attachments/attachment.routes';
+import billingRoutes, { webhookRouter } from '@/modules/billing/billing.routes';
 
 const app: Application = express();
 
@@ -117,6 +120,10 @@ app.use(`${API_PREFIX}/organizations/:id/tasks`, taskRoutes);
 app.use(`${API_PREFIX}/organizations/:id/members`, memberRoutes);
 app.use(`${API_PREFIX}/organizations/:id/notifications`, notificationRoutes);
 app.use(`${API_PREFIX}/organizations/:id/activity`, activityRoutes);
+app.use(`${API_PREFIX}/organizations/:id/search`, searchRoutes);
+app.use(`${API_PREFIX}/organizations/:id/tasks`, attachmentRoutes);
+app.use(`${API_PREFIX}`, webhookRouter);
+app.use(`${API_PREFIX}/organizations/:id/billing`, billingRoutes);
 
 // 404 handler - must be after all routes
 app.use(notFoundHandler);

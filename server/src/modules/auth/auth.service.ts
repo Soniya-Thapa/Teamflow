@@ -270,6 +270,30 @@ class AuthService extends BaseService {
     };
   }
 
+  //-----------------------------GET USER PROFILE-----------------------------
+
+  async updateProfile(userId: string,
+    data: { firstName?: string; lastName?: string; avatar?: string }) {
+
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        avatar: data.avatar,
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        avatar: true,
+        isEmailVerified: true,
+      },
+    });
+    return user;
+  }
+
   //-----------------------------CHANGE PASSWORD -----------------------------
 
   async changePassword(userId: string, currentPassword: string, newPassword: string) {

@@ -6,7 +6,7 @@
  * Includes sidebar + topbar shell.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppSelector } from '@/hooks/redux.hooks';
 import { Sidebar } from '@/components/shared/sidebar';
@@ -14,6 +14,7 @@ import { Topbar } from '@/components/shared/topbar';
 import { ErrorBoundary } from '@/components/shared/error-boundary';
 import { SkeletonSidebar } from '@/components/shared/skeleton';
 import { VerificationBanner } from '@/components/shared/verification-banner';
+import { SearchModal } from '@/components/shared/search-modal';
 
 export default function DashboardLayout({
   children,
@@ -21,6 +22,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const [showSearch, setShowSearch] = useState(false);
   const { isAuthenticated, isLoading } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
@@ -28,6 +30,20 @@ export default function DashboardLayout({
       router.push('/login');
     }
   }, [isAuthenticated, isLoading, router]);
+
+ 
+// Add keyboard shortcut inside component (in a useEffect)
+useEffect(() => {
+  const handler = (e: KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      setShowSearch(true);
+    }
+    if (e.key === 'Escape') setShowSearch(false);
+  };
+  document.addEventListener('keydown', handler);
+  return () => document.removeEventListener('keydown', handler);
+}, []);
 
   // 1. Still checking? Show 
   // Show skeleton while checking auth on page load
@@ -68,7 +84,6 @@ export default function DashboardLayout({
 
         {/* Topbar */}
         <Topbar />
-
         <VerificationBanner />
 
         {/* Page content */}
@@ -78,6 +93,7 @@ export default function DashboardLayout({
           </ErrorBoundary>
         </main>
       </div>
+      {showSearch && <SearchModal onClose={() => setShowSearch(false)} />}
     </div>
   );
 }

@@ -118,7 +118,9 @@ Backend must be running at `http://localhost:5000`.
 | 20 | Auth pages — Login, Register, Forgot Password, Reset Password | ✅ Done |
 | 21 | Dashboard shell — Sidebar, Topbar, Org Switcher, Responsive layout | ✅ Done |
 | 22 | Organization pages — Create org, Settings, Members, Email verification | ✅ Done |
-
+| 23 | Teams pages — list, detail, member management, create/edit/delete | ✅ Done |
+| 24 | Projects pages — list, detail, stats, archive, favorite, activity | ✅ Done |
+| 25 | Tasks pages + Kanban board — drag and drop, task detail drawer, comments | ✅ Done |
 ---
 
 ## API Communication
@@ -446,6 +448,60 @@ Resend verification
 
 **Verification banner (`components/shared/verification-banner.tsx`):** Rendered between `<Topbar />` and `<main>` in the dashboard layout. Conditionally rendered — returns `null` if `user.isEmailVerified` is true or if dismissed. Dismissing only hides it for the current session — it reappears on next page load until the email is verified.
 
+---
+
+## Day 23 — Teams Pages
+
+### Teams List (`/teams`)
+Card grid showing all organization teams. Each card shows team name, description preview, leader name, and member count. Hovering reveals an actions dropdown (edit, delete). Click a card to navigate to the team detail page.
+
+### Team Detail (`/teams/:teamId`)
+Shows full team information — name, description, leader. Two sections: Members list and Projects list. Members can be added, removed, and have their role changed (Team Lead / Member) via a dropdown. Projects assigned to the team are listed and clickable.
+
+### Modals
+TeamForm handles both create and edit — fetches org members for the leader select. AddMemberModal filters out already-added members. ConfirmDialog used for delete and remove actions.
+
+---
+
+## Day 24 — Projects Pages
+
+### Projects List (`/projects`)
+Card grid with status filter pills (All / Active / Archived / Completed) and search. Each card shows name, description, status badge, and task count. Star icon toggles favorite. Actions dropdown: edit, archive, delete.
+
+### Project Detail (`/projects/:projectId`)
+Header with name, status, archive/edit buttons, favorite star. Four stat cards (total, in progress, done, overdue). Completion progress bar. Recent tasks list (last 10). Recent activity timeline. "View all" link navigates to the Kanban board.
+
+### Archive
+PATCH `/projects/:id/archive` — sets status to ARCHIVED. PATCH `/projects/:id/unarchive` — restores to ACTIVE. The button label toggles between "Archive" and "Unarchive" based on current status.
+
+---
+
+## Day 25 — Tasks Pages + Kanban Board
+
+### My Tasks (`/tasks`)
+Shows all tasks assigned to the current user. Two view modes toggled via list/grid icon buttons in the top right. List mode shows TaskCards in a vertical stack. Board mode shows the full Kanban board.
+
+### Project Tasks (`/projects/:projectId/tasks`)
+Kanban board scoped to a specific project. Navigated to via "View all" link on the project detail page. Create task button pre-fills the projectId.
+
+### Kanban Board
+Four columns: To Do, In Progress, Review, Done. Each column header shows a count badge. Drag and drop powered by `@hello-pangea/dnd`. On drop to a different column, the UI updates optimistically and PATCH `/tasks/:id { status }` is called. Empty columns show a "Drop tasks here" placeholder. Plus button on each column header opens the create task modal with that status pre-selected.
+
+### Task Detail Drawer
+Opens as a right-side panel (max-w-xl) with a backdrop. Properties section: status selector (button pills), priority selector (button pills), assignee display, due date. Click the title to edit it inline. Comments section shows all comments with poster avatar and date. New comment input sends on Enter or Send button. Activity log shows recent actions with a vertical timeline.
+
+### Drag and Drop Flow
+```
+User grabs task card → Draggable provides drag handle
+Card moves across columns → visual feedback (rotate + shadow)
+Drop on column → DropResult contains source and destination droppableId
+onDragEnd called → checks if column changed → calls fetchTasks (optimistic)
+PATCH /organizations/:orgId/tasks/:taskId { status: newStatus }
+fetchTasks called again → confirms new state
+```
+
+### Package
+`@hello-pangea/dnd` — maintained fork of react-beautiful-dnd compatible with React 18+.
 ---
 
 ## Email Templates

@@ -33,6 +33,7 @@
 import { BaseService } from '@/common/BaseService';
 import ApiError from '@/utils/ApiError';
 import { NotificationType } from '@prisma/client';
+import { emitToUser } from '@/config/socket';
 
 // ─────────────────────────────────────────
 // TYPES
@@ -88,6 +89,18 @@ class NotificationService extends BaseService {
         userId: data.userId,
         type: data.type,
       });
+
+      const unreadCount = await this.prisma.notification.count({
+        where: { userId: data.userId, isRead: false },
+      });
+      try {
+        emitToUser(data.userId, 'notification:new', {
+          notification,
+          unreadCount,
+        });
+      } catch (error) {
+        // Socket might not be initialized yet — no problem
+      }
 
       return notification;
     } catch (error) {

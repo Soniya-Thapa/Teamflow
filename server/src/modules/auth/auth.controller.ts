@@ -167,6 +167,21 @@ class AuthController extends BaseController {
     return this.sendSuccess(res, user);
   });
 
+  //-------------------------------UPDATE PROFILE------------------------------
+
+  updateProfile = this.asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.userId!;
+    const { firstName, lastName, avatar } = req.body;
+
+    const user = await authService.updateProfile(userId, {
+      firstName,
+      lastName,
+      avatar,
+    });
+
+    return this.sendSuccess(res, { user }, 'Profile updated');
+  });
+
   //-----------------------------CHANGE PASSWORD-----------------------------
 
   //POST /api/v1/auth/change-password

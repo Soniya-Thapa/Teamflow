@@ -8,6 +8,8 @@ const settingsLinks = [
   { href: '/settings/organization', label: 'Organization' },
   { href: '/settings/members', label: 'Members' },
   { href: '/settings/profile', label: 'Profile' },
+  { href: '/settings/roles', label: 'Roles & Permissions' },
+  { href: '/settings/billing', label: 'Billing' },
 ];
 
 export default function SettingsLayout({

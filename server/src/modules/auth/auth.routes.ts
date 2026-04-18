@@ -44,6 +44,8 @@ router.post('/logout', authenticate, authController.logout);
 //GET /api/v1/auth/me
 router.get('/me', authenticate, authController.getProfile);
 
+router.patch('/me', authenticate, authController.updateProfile);
+
 //POST /api/v1/auth/change-password
 router.post('/change-password', authenticate, validate(changePasswordSchema), authController.changePassword);
 

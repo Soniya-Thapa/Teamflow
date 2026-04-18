@@ -21,6 +21,7 @@ import { BaseService } from '@/common/BaseService';
 import ApiError from '@/utils/ApiError';
 import notificationService from '@/modules/notifications/notification.service';
 import { NotificationType } from '@prisma/client';
+import { emitToOrg } from '@/config/socket';
 
 // ─────────────────────────────────────────
 // TYPES
@@ -307,15 +308,15 @@ class TaskService extends BaseService {
     await this.maybeAdvanceOnboarding(organizationId);
 
     if (dto.assignedTo) {
-  await notificationService.createNotification({
-    userId: dto.assignedTo,
-    organizationId,
-    type: NotificationType.TASK_ASSIGNED,
-    title: 'Task assigned',
-    message: `You have been assigned "${task.title}"`,
-    metadata: { taskId: task.id },
-  });
-}
+      await notificationService.createNotification({
+        userId: dto.assignedTo,
+        organizationId,
+        type: NotificationType.TASK_ASSIGNED,
+        title: 'Task assigned',
+        message: `You have been assigned "${task.title}"`,
+        metadata: { taskId: task.id },
+      });
+    }
 
     return { task };
   }
@@ -500,6 +501,23 @@ class TaskService extends BaseService {
 
       return updated;
     });
+
+    // ─────────────────────────────────────────
+    // REAL-TIME SOCKET EMIT (REQUIRED)
+    // ─────────────────────────────────────────
+
+    if (dto.status && dto.status !== task.status) {
+      try {
+        emitToOrg(organizationId, 'task:status:changed', {
+          taskId,
+          status: updatedTask.status,
+          updatedBy: userId,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (error) {
+        // silently ignore socket errors
+      }
+    }
 
     if (dto.assignedTo && dto.assignedTo !== oldAssignee) {
       await notificationService.createNotification({

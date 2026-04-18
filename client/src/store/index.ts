@@ -10,11 +10,16 @@
 import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './slices/auth.slice';
 import organizationReducer from './slices/organization.slice';
+import notificationReducer from './slices/notification.slice';
+import searchReducer from './slices/search.slice';
+
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     organization: organizationReducer,
+    notifications: notificationReducer,
+    search: searchReducer,
   },
 });
 
