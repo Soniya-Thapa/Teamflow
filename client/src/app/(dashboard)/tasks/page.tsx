@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Search, LayoutGrid, List } from 'lucide-react';
+import { Plus, Search, LayoutGrid, List, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/shared/modal';
@@ -13,8 +13,9 @@ import { SkeletonTable } from '@/components/shared/skeleton';
 import { useOrgApi } from '@/hooks/use-org-api';
 import { useAppSelector } from '@/hooks/redux.hooks';
 import { Task } from '@/types';
+import { RankedTaskList } from './_components/ranked-tasks';
 
-type ViewMode = 'list' | 'board';
+type ViewMode = 'list' | 'board' | 'ranked';
 
 export default function TasksPage() {
   const { orgId, buildUrl, api } = useOrgApi();
@@ -93,11 +94,10 @@ export default function TasksPage() {
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => setStatusFilter('')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              !statusFilter
-                ? 'bg-[#476e66] text-white'
-                : 'bg-[#f4f4f4] text-[#708a83] hover:bg-[#dfdfe2]'
-            }`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${!statusFilter
+              ? 'bg-[#476e66] text-white'
+              : 'bg-[#f4f4f4] text-[#708a83] hover:bg-[#dfdfe2]'
+              }`}
           >
             All
           </button>
@@ -105,11 +105,10 @@ export default function TasksPage() {
             <button
               key={s}
               onClick={() => setStatusFilter(s === statusFilter ? '' : s)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                statusFilter === s
-                  ? 'bg-[#476e66] text-white'
-                  : 'bg-[#f4f4f4] text-[#708a83] hover:bg-[#dfdfe2]'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === s
+                ? 'bg-[#476e66] text-white'
+                : 'bg-[#f4f4f4] text-[#708a83] hover:bg-[#dfdfe2]'
+                }`}
             >
               {s.replace('_', ' ')}
             </button>
@@ -120,23 +119,31 @@ export default function TasksPage() {
         <div className="ml-auto flex items-center gap-1 bg-[#f4f4f4] dark:bg-slate-800 rounded-lg p-1">
           <button
             onClick={() => setViewMode('list')}
-            className={`p-1.5 rounded-md transition-colors ${
-              viewMode === 'list'
-                ? 'bg-white dark:bg-slate-700 text-[#476e66] shadow-sm'
-                : 'text-[#708a83]'
-            }`}
+            className={`p-1.5 rounded-md transition-colors ${viewMode === 'list'
+              ? 'bg-white dark:bg-slate-700 text-[#476e66] shadow-sm'
+              : 'text-[#708a83]'
+              }`}
           >
             <List size={14} />
           </button>
           <button
             onClick={() => setViewMode('board')}
-            className={`p-1.5 rounded-md transition-colors ${
-              viewMode === 'board'
-                ? 'bg-white dark:bg-slate-700 text-[#476e66] shadow-sm'
-                : 'text-[#708a83]'
-            }`}
+            className={`p-1.5 rounded-md transition-colors ${viewMode === 'board'
+              ? 'bg-white dark:bg-slate-700 text-[#476e66] shadow-sm'
+              : 'text-[#708a83]'
+              }`}
           >
             <LayoutGrid size={14} />
+          </button>
+          <button
+            onClick={() => setViewMode('ranked')}
+            className={`flex items-center gap-1 px-2 py-1.5 rounded-md transition-colors ${viewMode === 'ranked'
+              ? 'bg-white dark:bg-slate-700 text-[#476e66] shadow-sm'
+              : 'text-[#708a83]'
+              }`}
+          >
+            <TrendingUp size={14} />
+            <span className="text-xs">Smart Rank</span>
           </button>
         </div>
       </div>
@@ -151,6 +158,8 @@ export default function TasksPage() {
           onTaskClick={setSelectedTask}
           onRefresh={fetchTasks}
         />
+      ) : viewMode === 'ranked' ? (
+        <RankedTaskList />
       ) : (
         <div className="space-y-2">
           {filtered.length === 0 ? (

@@ -29,6 +29,8 @@ import {
   Menu,
   X,
   Bell,
+  Activity,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/hooks/redux.hooks';
@@ -55,9 +57,11 @@ const navLinks = [
   { href: '/projects', label: 'Projects', icon: FolderOpen },
   { href: '/tasks', label: 'My Tasks', icon: CheckSquare },
   { href: '/teams', label: 'Teams', icon: Users },
-  { href: '/members', label: 'Members', icon: UserCircle },
+  { href: '/settings/members', label: 'Members', icon: UserCircle },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/settings', label: 'Settings', icon: Settings },
+  { href: '/settings/profile', label: 'Settings', icon: Settings },
+  { href: '/analytics/health', label: 'Health Score', icon: Activity },
+  { href: '/analytics/digest', label: 'AI Digest', icon: Sparkles },
 ];
 
 // ─────────────────────────────────────────
@@ -91,8 +95,20 @@ function OrgSwitcher() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors group">
-          <div className="w-6 h-6 bg-indigo-600 rounded-md flex items-center justify-center shrink-0">
-            <Building2 size={12} className="text-white" />
+          <div className="w-6 h-6 rounded-md overflow-hidden shrink-0">
+            {activeOrg.logo ? (
+              <img
+                src={activeOrg.logo}
+                alt={activeOrg.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-indigo-600 flex items-center justify-center">
+                <span className="text-white text-xs font-bold">
+                  {activeOrg.name?.[0]?.toUpperCase()}
+                </span>
+              </div>
+            )}
           </div>
           <div className="flex-1 text-left min-w-0">
             <p className="text-sm font-medium text-slate-900 dark:text-white truncate">

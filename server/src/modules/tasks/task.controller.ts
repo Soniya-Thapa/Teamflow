@@ -105,7 +105,7 @@ class TaskController extends BaseController {
   update = this.asyncHandler(async (req: Request, res: Response) => {
     const userId = req.userId!;
     const organizationId = req.organizationId!;
-    const memberRole = req.memberRole!; 
+    const memberRole = req.memberRole!;
     const { taskId } = req.params;
     const { title, description, status, priority, assignedTo, dueDate, estimatedHours, actualHours, parentTaskId } = req.body;
 
@@ -135,52 +135,52 @@ class TaskController extends BaseController {
   });
 
   // ─────────────────────────────────────────
-// ASSIGNEES
-// ─────────────────────────────────────────
+  // ASSIGNEES
+  // ─────────────────────────────────────────
 
-/** GET /organizations/:id/tasks/:taskId/assignees */
-listAssignees = this.asyncHandler(async (req: Request, res: Response) => {
-  const organizationId = req.organizationId!;
-  const { taskId } = req.params;
+  /** GET /organizations/:id/tasks/:taskId/assignees */
+  listAssignees = this.asyncHandler(async (req: Request, res: Response) => {
+    const organizationId = req.organizationId!;
+    const { taskId } = req.params;
 
-  const result = await taskService.listAssignees(organizationId, taskId as string);
-  return this.sendSuccess(res, result, 'Assignees retrieved successfully');
-});
+    const result = await taskService.listAssignees(organizationId, taskId as string);
+    return this.sendSuccess(res, result, 'Assignees retrieved successfully');
+  });
 
-/** POST /organizations/:id/tasks/:taskId/assignees */
-assignTask = this.asyncHandler(async (req: Request, res: Response) => {
-  const userId = req.userId!;
-  const organizationId = req.organizationId!;
-  const { taskId } = req.params;
-  const { userId: targetUserId, isPrimary, replacePrevious } = req.body;
+  /** POST /organizations/:id/tasks/:taskId/assignees */
+  assignTask = this.asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.userId!;
+    const organizationId = req.organizationId!;
+    const { taskId } = req.params;
+    const { userId: targetUserId, isPrimary, replacePrevious } = req.body;
 
-  const result = await taskService.assignTask(
-    userId,
-    organizationId,
-    taskId as string,
-    targetUserId,
-    isPrimary,
-    replacePrevious,
-  );
+    const result = await taskService.assignTask(
+      userId,
+      organizationId,
+      taskId as string,
+      targetUserId,
+      isPrimary,
+      replacePrevious,
+    );
 
-  return this.sendCreated(res, result, 'Task assigned successfully');
-});
+    return this.sendCreated(res, result, 'Task assigned successfully');
+  });
 
-/** DELETE /organizations/:id/tasks/:taskId/assignees/:userId */
-removeAssignee = this.asyncHandler(async (req: Request, res: Response) => {
-  const userId = req.userId!;
-  const organizationId = req.organizationId!;
-  const { taskId, userId: targetUserId } = req.params;
+  /** DELETE /organizations/:id/tasks/:taskId/assignees/:userId */
+  removeAssignee = this.asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.userId!;
+    const organizationId = req.organizationId!;
+    const { taskId, userId: targetUserId } = req.params;
 
-  const result = await taskService.removeAssignee(
-    userId,
-    organizationId,
-    taskId as string,
-    targetUserId as string,
-  );
+    const result = await taskService.removeAssignee(
+      userId,
+      organizationId,
+      taskId as string,
+      targetUserId as string,
+    );
 
-  return this.sendSuccess(res, result, 'Assignee removed successfully');
-});
+    return this.sendSuccess(res, result, 'Assignee removed successfully');
+  });
 
   // ─────────────────────────────────────────
   // BULK OPERATIONS
@@ -365,6 +365,23 @@ removeAssignee = this.asyncHandler(async (req: Request, res: Response) => {
 
     const result = await taskService.listSubtasks(organizationId, taskId as string);
     return this.sendSuccess(res, result, 'Subtasks retrieved successfully');
+  });
+
+  // for algorithm
+  getRankedTasks = this.asyncHandler(async (req: Request, res: Response) => {
+    const organizationId = req.organizationId!;
+    const { projectId } = req.query as { projectId?: string };
+
+    const rankedTasks = await taskService.getRankedTasks(
+      organizationId,
+      projectId,
+    );
+
+    return this.sendSuccess(
+      res,
+      { tasks: rankedTasks, total: rankedTasks.length },
+      'Tasks ranked by urgency score',
+    );
   });
 }
 

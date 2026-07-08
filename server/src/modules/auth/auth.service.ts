@@ -4,7 +4,8 @@ import ApiError from "@/utils/ApiError";
 import jwtUtil from "@/utils/jwt.util";
 import passwordUtil from "@/utils/password.util";
 import { addEmailJob, EmailJobType } from '@/modules/email/email.queue';
-
+import { Express } from "express";
+import cloudinary from '@/config/cloudinary';
 //-----------------------------AUTHENTICATION SERVICE-----------------------------
 
 class AuthService extends BaseService {
@@ -534,6 +535,135 @@ class AuthService extends BaseService {
     this.log('Email verified', { userId: tokenRecord.userId });
 
     return { message: 'Email verified successfully' };
+  }
+
+  //--------------------------------------------------------------------
+
+  async getUserOrganizations(userId: string) {
+    const memberships =
+      await this.prisma.organizationMember.findMany({
+        where: {
+          userId,
+          status: 'ACTIVE',
+          organization: {
+            deletedAt: null,
+            status: 'ACTIVE',
+          },
+        },
+        include: {
+          organization: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              plan: true,
+              status: true,
+              logo: true,
+            },
+          },
+        },
+        orderBy: {
+          joinedAt: 'asc',
+        },
+      });
+
+    return memberships.map(
+      (membership) => membership.organization,
+    );
+  }
+
+  //-----------------------------UPLOAD USER AVATAR-----------------------------
+
+  async uploadAvatar(
+    userId: string,
+    file?: Express.Multer.File,
+  ) {
+
+    if (!file) {
+      throw ApiError.badRequest("No image file provided.");
+    }
+
+    // Validate image type
+    const allowedTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/webp",
+      "image/gif",
+    ];
+
+    if (!allowedTypes.includes(file.mimetype)) {
+      throw ApiError.badRequest(
+        "Only image files are allowed (jpg, png, webp, gif)."
+      );
+    }
+
+    // Validate size (5 MB)
+    const MAX_SIZE = 5 * 1024 * 1024;
+
+    if (file.size > MAX_SIZE) {
+      throw ApiError.badRequest(
+        "Image must be smaller than 5MB."
+      );
+    }
+
+    // Upload to Cloudinary
+    const uploadResult = await new Promise<any>((resolve, reject) => {
+
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder: `teamflow/avatars/${userId}`,
+          resource_type: "image",
+          transformation: [
+            {
+              width: 400,
+              height: 400,
+              crop: "fill",
+              gravity: "face",
+            },
+            {
+              quality: "auto",
+              fetch_format: "auto",
+            },
+          ],
+          public_id: "avatar",
+          overwrite: true,
+        },
+        (error :any, result: any) => {
+
+          if (error) {
+            reject(error);
+          } else {
+            resolve(result);
+          }
+        }
+      );
+
+      stream.end(file.buffer);
+    });
+
+    // Save avatar URL
+    const user = await this.prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        avatar: uploadResult.secure_url,
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        avatar: true,
+        isEmailVerified: true,
+      },
+    });
+
+    return {
+      user,
+      avatarUrl: uploadResult.secure_url,
+    };
   }
 }
 

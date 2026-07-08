@@ -16,6 +16,9 @@ import ApiError from "@/utils/ApiError";
 import { OrganizationStatus } from "@prisma/client";
 import notificationService from '@/modules/notifications/notification.service';
 import { NotificationType } from '@prisma/client';
+import { emitToOrg } from '@/config/socket';
+import { Express } from "express";
+import cloudinary from "@/config/cloudinary";
 
 //-----------------------------ORGANIZATION SERVICE---------------------------------------------------------------------------------------
 
@@ -327,13 +330,13 @@ class OrganizationService extends BaseService {
     this.log('Organization updated', { organizationId: id });
 
     await notificationService.createNotification({
-  userId,
-  organizationId: id,
-  type: NotificationType.ORGANIZATION_UPDATED,
-  title: 'Organization updated',
-  message: `Organization "${data.name || 'details'}" has been updated`,
-  metadata: { organizationId: id },
-});
+      userId,
+      organizationId: id,
+      type: NotificationType.ORGANIZATION_UPDATED,
+      title: 'Organization updated',
+      message: `Organization "${data.name || 'details'}" has been updated`,
+      metadata: { organizationId: id },
+    });
 
     return updated;
   }
@@ -387,13 +390,13 @@ class OrganizationService extends BaseService {
     this.log('Organization soft deleted', { organizationId: id });
 
     await notificationService.createNotification({
-  userId,
-  organizationId: id,
-  type: NotificationType.ORGANIZATION_DELETED,
-  title: 'Organization deleted',
-  message: `Your organization has been deleted`,
-  metadata: { organizationId: id },
-});
+      userId,
+      organizationId: id,
+      type: NotificationType.ORGANIZATION_DELETED,
+      title: 'Organization deleted',
+      message: `Your organization has been deleted`,
+      metadata: { organizationId: id },
+    });
 
     return { message: 'Organization deleted successfully' };
   }
@@ -722,15 +725,193 @@ class OrganizationService extends BaseService {
     this.log('Organization status updated', { organizationId, status });
 
     await notificationService.createNotification({
-  userId,
-  organizationId,
-  type: NotificationType.ORGANIZATION_STATUS_UPDATED,
-  title: 'Organization status changed',
-  message: `Organization status changed to ${status}`,
-  metadata: { organizationId, status },
-});
+      userId,
+      organizationId,
+      type: NotificationType.ORGANIZATION_STATUS_UPDATED,
+      title: 'Organization status changed',
+      message: `Organization status changed to ${status}`,
+      metadata: { organizationId, status },
+    });
 
     return updated;
+  }
+
+  //------------------------------------------------------------------------
+
+  async getDashboardStats(
+    organizationId: string,
+    userId: string,
+  ) {
+
+    await this.verifyActiveMember(userId, organizationId);
+
+    const [
+      totalProjects,
+      myTasks,
+      totalMembers,
+      overdueTasks,
+      totalOrgTasks,
+      org,
+    ] = await Promise.all([
+
+      this.prisma.project.count({
+        where: {
+          organizationId,
+          status: 'ACTIVE',
+        },
+      }),
+
+      this.prisma.task.count({
+        where: {
+          organizationId,
+          assignedTo: userId,
+          status: {
+            not: 'DONE',
+          },
+        },
+      }),
+
+      this.prisma.organizationMember.count({
+        where: {
+          organizationId,
+          status: 'ACTIVE',
+        },
+      }),
+
+      this.prisma.task.count({
+        where: {
+          organizationId,
+          dueDate: {
+            lt: new Date(),
+          },
+          status: {
+            not: 'DONE',
+          },
+        },
+      }),
+
+       // ADD: total tasks in org (for onboarding check)
+      this.prisma.task.count({
+        where: { organizationId },
+      }),
+
+      this.prisma.organization.findUnique({
+        where: {
+          id: organizationId,
+        },
+        select: {
+          maxUsers: true,
+          maxProjects: true,
+          plan: true,
+        },
+      }),
+
+    ]);
+
+    return {
+      totalProjects,
+      myTasks,
+      totalMembers,
+      overdueTasks,
+      totalOrgTasks,
+      maxUsers: org?.maxUsers ?? 5,
+      maxProjects: org?.maxProjects ?? 3,
+      plan: org?.plan ?? 'FREE',
+    };
+  }
+
+  //-----------------------------UPLOAD ORGANIZATION LOGO-----------------------------
+
+  async uploadLogo(
+    organizationId: string,
+    file?: Express.Multer.File,
+  ) {
+
+    if (!file) {
+      throw ApiError.badRequest("No image file provided.");
+    }
+
+    // Validate image type
+    const allowedTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/webp",
+      "image/svg+xml",
+    ];
+
+    if (!allowedTypes.includes(file.mimetype)) {
+      throw ApiError.badRequest(
+        "Only image files are allowed (jpg, png, webp, svg)."
+      );
+    }
+
+    // Validate size (5 MB)
+    const MAX_SIZE = 5 * 1024 * 1024;
+
+    if (file.size > MAX_SIZE) {
+      throw ApiError.badRequest(
+        "Logo must be smaller than 5MB."
+      );
+    }
+
+    // Upload to Cloudinary
+    const uploadResult = await new Promise<any>((resolve, reject) => {
+
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder: `teamflow/logos/${organizationId}`,
+          resource_type: "image",
+          transformation: [
+            {
+              width: 200,
+              height: 200,
+              crop: "fill",
+              gravity: "center",
+            },
+            {
+              quality: "auto",
+              fetch_format: "auto",
+            },
+          ],
+          public_id: "logo",
+          overwrite: true,
+        },
+        (error, result) => {
+
+          if (error) {
+            reject(error);
+          } else {
+            resolve(result);
+          }
+        }
+      );
+
+      stream.end(file.buffer);
+    });
+
+    // Save logo URL
+    const organization = await this.prisma.organization.update({
+      where: {
+        id: organizationId,
+      },
+      data: {
+        logo: uploadResult.secure_url,
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        plan: true,
+        status: true,
+        logo: true,
+      },
+    });
+
+    return {
+      organization,
+      logoUrl: uploadResult.secure_url,
+    };
   }
 }
 

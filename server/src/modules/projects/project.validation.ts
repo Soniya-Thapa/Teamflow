@@ -53,12 +53,27 @@ export const createProjectSchema = z.object({
       .default('PUBLIC'),
     startDate: z
       .string()
-      .datetime('Invalid date format')
-      .optional(),
+      .optional()
+      .nullable()
+      .transform((val) => {
+        if (!val || val === '') return undefined;
+        // If it's just a date (YYYY-MM-DD), convert to ISO datetime
+        if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+          return new Date(val).toISOString();
+        }
+        return val;
+      }),
     endDate: z
       .string()
-      .datetime('Invalid date format')
-      .optional(),
+      .optional()
+      .nullable()
+      .transform((val) => {
+        if (!val || val === '') return undefined;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+          return new Date(val).toISOString();
+        }
+        return val;
+      }),
   }),
 });
 
@@ -91,14 +106,27 @@ export const updateProjectSchema = z.object({
       .optional(),
     startDate: z
       .string()
-      .datetime()
+      .optional()
       .nullable()
-      .optional(),
+      .transform((val) => {
+        if (!val || val === '') return undefined;
+        // If it's just a date (YYYY-MM-DD), convert to ISO datetime
+        if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+          return new Date(val).toISOString();
+        }
+        return val;
+      }),
     endDate: z
       .string()
-      .datetime()
+      .optional()
       .nullable()
-      .optional(),
+      .transform((val) => {
+        if (!val || val === '') return undefined;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+          return new Date(val).toISOString();
+        }
+        return val;
+      }),
   }).refine(
     (data) => Object.keys(data).length > 0,
     { message: 'At least one field must be provided for update' },
@@ -144,8 +172,22 @@ export const listProjectsSchema = z.object({
       .string()
       .optional()
       .transform(val => val === 'true'),
-    startDate: z.string().datetime().optional(),
-    endDate: z.string().datetime().optional(),
+    startDate: z
+      .string()
+      .optional()
+      .transform((val) => {
+        if (!val || val === '') return undefined;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return new Date(val).toISOString();
+        return val;
+      }),       
+    endDate: z
+      .string()
+      .optional()
+      .transform((val) => {
+        if (!val || val === '') return undefined;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return new Date(val).toISOString();
+        return val;
+      }),
   }),
 });
 

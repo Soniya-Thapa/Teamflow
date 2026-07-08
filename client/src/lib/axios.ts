@@ -132,7 +132,17 @@ api.interceptors.response.use(
     const url = originalRequest.url || '';
     const shouldSkip = SKIP_REFRESH_URLS.some((u) => url.includes(u));
 
-   // Don't attempt refresh for auth routes or already-retried requests
+    if (error.response?.status === 403) {
+      const data = error.response.data as any;
+
+      if (data?.code === 'QUOTA_EXCEEDED' && typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('quota:exceeded', { detail: data.data }),
+        );
+      }
+    }
+
+    // Don't attempt refresh for auth routes or already-retried requests
     if (error.response?.status === 401 && !originalRequest._retry && !shouldSkip) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {

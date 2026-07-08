@@ -5,11 +5,14 @@
  * WHY SEPARATE FROM AUTH?
  * Auth = who you are (user identity)
  * Organization = which workspace you are in (context)
- * Separating them keeps each slice focused on one thing.
  *
- * ACTIVE ORG:
- * When user switches org → this slice updates
- * Axios interceptor reads from this slice to attach X-Organization-ID header
+ * PERSISTENCE:
+ * Active org is saved to localStorage so when user refreshes,
+ * they return to the same org they were last using.
+ *
+ * SMART RESTORE:
+ * On reload, we check if the saved org is still in the user's
+ * membership list. If removed from org → fall back to first org.
  */
 
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
@@ -35,18 +38,32 @@ const initialState: OrganizationState = {
 };
 
 // ─────────────────────────────────────────
+// LOCALSTORAGE KEY
+// Saves which org the user last had active
+// ─────────────────────────────────────────
+
+const ACTIVE_ORG_KEY = 'teamflow_active_org';
+
+// ─────────────────────────────────────────
 // ASYNC ACTIONS
 // ─────────────────────────────────────────
 
 /**
  * Fetch all organizations the current user belongs to.
- * Called after login and on app boot.
+ * Uses GET /auth/organizations — returns only orgs the user is a member of.
+ *
+ * Called:
+ * 1. After login (in providers.tsx or login page)
+ * 2. After registration
+ * 3. On app boot (session restore)
  */
 export const fetchUserOrganizations = createAsyncThunk(
   'organization/fetchAll',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get('/organizations');
+      // Use /auth/organizations — returns user's memberships only
+      // NOT /organizations which is admin-only list
+      const response = await api.get('/auth/organizations');
       return response.data.data.organizations as Organization[];
     } catch (error: any) {
       return rejectWithValue(
@@ -66,42 +83,26 @@ const organizationSlice = createSlice({
 
   reducers: {
     /**
-     * Set the active organization.
-     * Also saves to localStorage so Axios interceptor can read it.
+     * Switch the active organization.
+     * Called when user clicks org switcher in sidebar.
+     * Saves to localStorage so the selection persists on reload.
      */
     setActiveOrg(state, action: PayloadAction<Organization>) {
       state.activeOrg = action.payload;
-      // if (typeof window !== 'undefined') {
-      //   localStorage.setItem(
-      //     'teamflow_active_org',
-      //     JSON.stringify(action.payload),
-      //   );
-      // }
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(ACTIVE_ORG_KEY, JSON.stringify(action.payload));
+      }
     },
 
     /**
-     * Restore active org from localStorage on app boot.
-     * Called in providers.tsx alongside fetchCurrentUser.
+     * Clear all org state on logout.
      */
-    // restoreActiveOrg(state) {
-    //   if (typeof window !== 'undefined') {
-    //     const raw = localStorage.getItem('teamflow_active_org');
-    //      if (raw) {
-    //       try {
-    //         state.activeOrg = JSON.parse(raw);
-    //       } catch {
-    //         state.activeOrg = null;
-    //       }
-    //     }
-    //   }
-    // },
-
     clearOrganization(state) {
       state.activeOrg = null;
       state.userOrgs = [];
-      // if (typeof window !== 'undefined') {
-      //   localStorage.removeItem('teamflow_active_org');
-      // }
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(ACTIVE_ORG_KEY);
+      }
     },
   },
 
@@ -115,15 +116,48 @@ const organizationSlice = createSlice({
         state.isLoading = false;
         state.userOrgs = action.payload;
 
-        // Auto-select first org if none active
-        if (!state.activeOrg && action.payload.length > 0) {
-          state.activeOrg = action.payload[0];
-          if (typeof window !== 'undefined') {
-            localStorage.setItem(
-              'teamflow_active_org',
-              JSON.stringify(action.payload[0]),
-            );
+        if (action.payload.length === 0) {
+          state.activeOrg = null;
+          return;
+        }
+
+        /**
+         * SMART ORG RESTORE:
+         *
+         * 1. Check localStorage for previously selected org
+         * 2. Verify that org is still in user's membership list
+         *    (they might have been removed since last session)
+         * 3. If valid → restore it (user returns to same org)
+         * 4. If not found → use first org in list
+         */
+        let restoredOrg: Organization | null = null;
+
+        if (typeof window !== 'undefined') {
+          const raw = localStorage.getItem(ACTIVE_ORG_KEY);
+          if (raw) {
+            try {
+              const parsed = JSON.parse(raw) as Organization;
+              // Verify user is still a member AND use fresh API data
+              const freshOrg = action.payload.find((o) => o.id === parsed.id);
+              if (freshOrg) {
+                restoredOrg = freshOrg;
+              }
+            } catch {
+              // Corrupt data in localStorage — clear it
+              localStorage.removeItem(ACTIVE_ORG_KEY);
+            }
           }
+        }
+
+        // Use restored org or default to first org
+        state.activeOrg = restoredOrg || action.payload[0];
+
+        // Always save the final selection to localStorage
+        if (typeof window !== 'undefined' && state.activeOrg) {
+          localStorage.setItem(
+            ACTIVE_ORG_KEY,
+            JSON.stringify(state.activeOrg),
+          );
         }
       })
       .addCase(fetchUserOrganizations.rejected, (state, action) => {
@@ -133,7 +167,5 @@ const organizationSlice = createSlice({
   },
 });
 
-export const { setActiveOrg, clearOrganization } =
-  organizationSlice.actions;
-
+export const { setActiveOrg, clearOrganization } = organizationSlice.actions;
 export default organizationSlice.reducer;

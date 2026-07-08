@@ -3,11 +3,15 @@
  * Centers content on screen with TeamFlow branding at top
  */
 
-export default function AuthLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+// If you use this layout like:
+
+// <AuthLayout>
+//   <LoginPage />
+// </AuthLayout>
+// Then:
+// children = <LoginPage />
+
+export default function AuthLayout({ children }: { children: React.ReactNode; }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 lab(80 2.05 -15.26) dark:to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6">

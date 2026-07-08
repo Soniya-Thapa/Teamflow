@@ -1,0 +1,59 @@
+/**
+ * @file sanitize.middleware.ts
+ * @description Strip XSS from all string inputs in req.body.
+ *
+ * WHY XSS SANITIZATION?
+ * If a malicious user sends <script>alert('xss')</script> in a task title,
+ * and it gets rendered as raw HTML in the frontend, it could execute.
+ * Sanitization removes or escapes dangerous HTML tags from all string fields.
+ *
+ * HOW:
+ * The `xss` library strips dangerous HTML while keeping safe characters.
+ * Applied as middleware so every endpoint is automatically protected.
+ * Runs after body parsing, before validation.
+ *
+ * WHAT IT STRIPS:
+ * <script>, <iframe>, event handlers (onclick, onload), javascript: URLs
+ * Regular text including <, >, & are preserved safely.
+ */
+
+import { Request, Response, NextFunction } from 'express';
+import xss from 'xss';
+
+/**
+ * Recursively sanitize all string values in an object.
+ */
+function sanitizeObject(obj: any): any {
+  if (typeof obj === 'string') {
+    return xss(obj);
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(sanitizeObject);
+  }
+
+  if (obj !== null && typeof obj === 'object') {
+    const sanitized: Record<string, any> = {};
+    for (const key of Object.keys(obj)) {
+      sanitized[key] = sanitizeObject(obj[key]);
+    }
+    return sanitized;
+  }
+
+  return obj; // Numbers, booleans, null — return as-is
+}
+
+/**
+ * Middleware that sanitizes req.body in place.
+ * Safe to apply globally — only affects string values.
+ */
+export function sanitizeInputs(
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+) {
+  if (req.body && typeof req.body === 'object') {
+    req.body = sanitizeObject(req.body);
+  }
+  return next();
+}

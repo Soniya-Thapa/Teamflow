@@ -22,6 +22,12 @@ import ApiError from '@/utils/ApiError';
 import notificationService from '@/modules/notifications/notification.service';
 import { NotificationType } from '@prisma/client';
 import { emitToOrg } from '@/config/socket';
+import {
+  rankTasksByUrgency,
+  buildWorkloadMap,
+  ScoredTask,
+  TaskInput,
+} from '@/utils/task-priority.algorithm';
 
 // ─────────────────────────────────────────
 // TYPES
@@ -1363,6 +1369,69 @@ BUT is not necessarily assigned to the task
     });
 
     return { subtasks };
+  }
+
+  /**
+ * Get tasks sorted by smart urgency score.
+ *
+ * Uses our custom priority scoring algorithm instead of
+ * simple label-based sorting.
+ *
+ * Called by: GET /organizations/:id/tasks/ranked
+ */
+  async getRankedTasks(
+    organizationId: string,
+    projectId?: string,
+  ): Promise<ScoredTask[]> {
+    this.log('Ranking tasks by urgency', { organizationId, projectId });
+
+    const where: any = {
+      organizationId,
+      status: { not: 'DONE' }, // Only rank active tasks
+    };
+
+    if (projectId) {
+      where.projectId = projectId;
+    }
+
+    // Fetch all active tasks for this org
+    const rawTasks = await this.prisma.task.findMany({
+      where,
+      select: {
+        id: true,
+        title: true,
+        priority: true,
+        dueDate: true,
+        createdAt: true,
+        assignedTo: true,
+        status: true,
+      },
+    });
+
+    // Convert Prisma result to our algorithm's input type
+    const taskInputs: TaskInput[] = rawTasks.map((t) => ({
+      id: t.id,
+      title: t.title,
+      priority: t.priority as 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT',
+      dueDate: t.dueDate,
+      createdAt: t.createdAt,
+      assignedTo: t.assignedTo,
+      status: t.status,
+    }));
+
+    // Build workload map — count active tasks per user
+    const workloadMap = buildWorkloadMap(taskInputs);
+
+    // Run the algorithm — returns tasks sorted by urgency
+    const rankedTasks = rankTasksByUrgency(taskInputs, workloadMap);
+
+    this.log('Tasks ranked', {
+      total: rankedTasks.length,
+      topTask: rankedTasks[0]?.title,
+      topScore: rankedTasks[0]?.urgencyScore,
+    });
+
+    return rankedTasks;
   }
 }
 

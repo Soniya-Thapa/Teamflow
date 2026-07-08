@@ -108,6 +108,8 @@ router.delete(
   taskController.bulkDelete,
 );
 
+router.get('/ranked', authenticate, requireOrganization, taskController.getRankedTasks);
+
 // ─────────────────────────────────────────
 // ASSIGNEES (before /:taskId to avoid conflicts)
 // ─────────────────────────────────────────

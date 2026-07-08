@@ -15,6 +15,7 @@ import { ErrorBoundary } from '@/components/shared/error-boundary';
 import { SkeletonSidebar } from '@/components/shared/skeleton';
 import { VerificationBanner } from '@/components/shared/verification-banner';
 import { SearchModal } from '@/components/shared/search-modal';
+import { UpgradePrompt } from '@/components/shared/upgrade-prompt';
 
 export default function DashboardLayout({
   children,
@@ -24,6 +25,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const [showSearch, setShowSearch] = useState(false);
   const { isAuthenticated, isLoading } = useAppSelector((state) => state.auth);
+  const [quotaExceeded, setQuotaExceeded] = useState<any>(null);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -31,19 +33,25 @@ export default function DashboardLayout({
     }
   }, [isAuthenticated, isLoading, router]);
 
- 
-// Add keyboard shortcut inside component (in a useEffect)
-useEffect(() => {
-  const handler = (e: KeyboardEvent) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-      e.preventDefault();
-      setShowSearch(true);
-    }
-    if (e.key === 'Escape') setShowSearch(false);
-  };
-  document.addEventListener('keydown', handler);
-  return () => document.removeEventListener('keydown', handler);
-}, []);
+
+  // Add keyboard shortcut inside component (in a useEffect)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowSearch(true);
+      }
+      if (e.key === 'Escape') setShowSearch(false);
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: CustomEvent) => setQuotaExceeded(e.detail);
+    window.addEventListener('quota:exceeded', handler as EventListener);
+    return () => window.removeEventListener('quota:exceeded', handler as EventListener);
+  }, []);
 
   // 1. Still checking? Show 
   // Show skeleton while checking auth on page load
@@ -94,6 +102,13 @@ useEffect(() => {
         </main>
       </div>
       {showSearch && <SearchModal onClose={() => setShowSearch(false)} />}
+
+      {quotaExceeded && (
+        <UpgradePrompt
+          {...quotaExceeded}
+          onClose={() => setQuotaExceeded(null)}
+        />
+      )}
     </div>
   );
 }

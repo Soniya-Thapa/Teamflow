@@ -102,16 +102,25 @@ function TeamCard({
         )}
 
         <div className="flex items-center justify-between pt-3 border-t border-[#f4f4f4] dark:border-slate-800">
-          {team.leader ? (
-            <div className="flex items-center gap-1.5">
-              <Crown size={11} className="text-amber-500" />
-              <span className="text-xs text-[#708a83]">
-                {team.leader.firstName} {team.leader.lastName}
-              </span>
-            </div>
-          ) : (
-            <span className="text-xs text-[#bec0bf]">No leader</span>
-          )}
+          {(() => {
+            // Leader is the first member with TEAM_LEAD role
+            // This matches what team.service.ts returns
+            const leaderMember = team.members?.find(
+              (m: any) => m.role === 'TEAM_LEAD',
+            );
+            const leader = leaderMember?.user;
+
+            return leader ? (
+              <div className="flex items-center gap-1.5">
+                <Crown size={11} className="text-amber-500" />
+                <span className="text-xs text-[#708a83]">
+                  {leader.firstName} {leader.lastName}
+                </span>
+              </div>
+            ) : (
+              <span className="text-xs text-[#bec0bf]">No leader</span>
+            );
+          })()}
 
           <div className="flex items-center gap-1">
             <Users size={11} className="text-[#bec0bf]" />

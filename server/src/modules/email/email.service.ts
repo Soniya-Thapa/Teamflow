@@ -11,6 +11,7 @@ import {
   welcomeEmail,
   passwordResetEmail,
   emailVerificationEmail,
+  aiDigestEmail,
 } from './email.templates';
 
 export interface EmailResult {
@@ -78,7 +79,7 @@ class EmailService {
     role: string,
     token: string
   ): Promise<EmailResult> {
-    const acceptUrl = `${envConfig.email.frontendUrl}/invite/accept?token=${token}`;
+    const acceptUrl = `${envConfig.email.frontendUrl}/invitations/accept?token=${token}`;
     const template = invitationEmail(inviterName, orgName, role, acceptUrl);
     return this.sendRaw({ to, ...template });
   }
@@ -103,14 +104,20 @@ class EmailService {
   }
 
   async sendEmailVerification(
-  to: string,
-  userName: string,
-  verificationToken: string,
-): Promise<EmailResult> {
-  const verifyUrl = `${envConfig.email.frontendUrl}/verify-email?token=${verificationToken}`;
-  const template = emailVerificationEmail(userName, verifyUrl);
-  return this.sendRaw({ to, ...template });
-}
+    to: string,
+    userName: string,
+    verificationToken: string,
+  ): Promise<EmailResult> {
+    const verifyUrl = `${envConfig.email.frontendUrl}/verify-email?token=${verificationToken}`;
+    const template = emailVerificationEmail(userName, verifyUrl);
+    return this.sendRaw({ to, ...template });
+  }
+
+  async sendAiDigest(to: string, orgName: string, summaryText: string): Promise<EmailResult> {
+    const dashboardUrl = `${envConfig.email.frontendUrl}/dashboard`;
+    const template = aiDigestEmail(orgName, summaryText, dashboardUrl);
+    return this.sendRaw({ to, ...template });
+  }
 }
 
 export default new EmailService();

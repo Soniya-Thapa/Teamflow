@@ -34,6 +34,7 @@ import {
   resendInvitationSchema,
   listInvitationsSchema,
 } from './invitation.validation';
+import { checkQuota } from '@/middleware/quota.middleware';
 
 // ─────────────────────────────────────────
 // ORG-SCOPED ROUTER
@@ -55,6 +56,7 @@ orgInvitationRouter.post(
   '/',
   validate(createInvitationSchema),
   requirePermission('member:invite'),
+  checkQuota('users'),
   invitationController.createInvitation,
 );
 

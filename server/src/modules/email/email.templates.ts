@@ -290,3 +290,28 @@ export const emailVerificationEmail = (
     </p>
   `),
 });
+
+export const aiDigestEmail = (
+  orgName: string,
+  summaryText: string,
+  dashboardUrl: string,
+): EmailTemplate => ({
+  subject: `Weekly Digest for ${orgName}`,
+  html: baseLayout(`
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:700;color:#111827;letter-spacing:-0.5px;">
+      Your weekly digest
+    </h1>
+    <p style="margin:0 0 20px;font-size:15px;color:#6B7280;line-height:1.6;">
+      Here's what's happening in <strong style="color:#374151;">${orgName}</strong> this week.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0"
+           style="background-color:#F9FAFB;border-radius:10px;border:1px solid #E5E7EB;padding:18px 20px;margin-bottom:8px;">
+      <tr><td><p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">${summaryText}</p></td></tr>
+    </table>
+    ${primaryButton(dashboardUrl, 'View Dashboard →')}
+    ${divider()}
+    <p style="margin:0;font-size:13px;color:#9CA3AF;line-height:1.6;">
+      This digest is generated automatically from your organization's activity data.
+    </p>
+  `),
+});

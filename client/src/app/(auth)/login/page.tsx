@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/card';
 import { useAppDispatch, useAppSelector } from '@/hooks/redux.hooks';
 import { loginUser, clearError } from '@/store/slices/auth.slice';
+import { fetchUserOrganizations } from '@/store/slices/organization.slice';
 import { useEffect } from 'react';
 
 // ─────────────────────────────────────────
@@ -38,7 +39,9 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const dispatch = useAppDispatch();
+  const dispatch = useAppDispatch(); // Used to call Redux actions (backend-related actions)
+
+  //useAppSelector: Used to read data from Redux
   const { isLoading, error } = useAppSelector((state) => state.auth);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -51,13 +54,23 @@ export default function LoginPage() {
     dispatch(clearError());
   }, [dispatch]);
 
-  const onSubmit = async (data: LoginFormData) => {
-    const result = await dispatch(loginUser(data));
+ const onSubmit = async (data: LoginFormData) => {
+  const result = await dispatch(loginUser(data));
 
-    if (loginUser.fulfilled.match(result)) {
-      router.push('/dashboard');
-    }
-  };
+  if (loginUser.fulfilled.match(result)) {
+    /**
+     * FIX: Fetch orgs before redirecting.
+     * Without this, dashboard renders with activeOrg = null
+     * because loginUser only fetches the user, not their orgs.
+     * providers.tsx handles this on page reload, but not on
+     * initial login since the user is already authenticated.
+     */
+    await dispatch(fetchUserOrganizations());
+    router.push('/dashboard');
+    router.refresh();
+
+  }
+}
 
   return (
     <Card className="shadow-lg border-slate-200 dark:border-slate-800">

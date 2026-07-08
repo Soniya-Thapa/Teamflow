@@ -5,12 +5,11 @@
  * @description Organization settings — General, Branding, Danger zone.
  */
 
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useState, useRef, useEffect } from 'react'; import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
-import { Loader2, Save, Trash2, AlertTriangle } from 'lucide-react';
+import { Loader2, Save, Trash2, AlertTriangle, Camera } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,13 +32,144 @@ const tabs: { key: Tab; label: string }[] = [
   { key: 'danger', label: 'Danger Zone' },
 ];
 
+// ------------------------------------------------------------------------
+
+function LogoUploader() {
+  const dispatch = useAppDispatch();
+  const { activeOrg } = useAppSelector((state) => state.organization);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState('');
+  const [preview, setPreview] = useState<string | null>(null);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeOrg) return;
+
+    // Show local preview immediately
+    const localPreviewUrl = URL.createObjectURL(file);
+    setPreview(localPreviewUrl);
+
+    setIsUploading(true);
+    setError('');
+
+    try {
+      const formData = new FormData();
+      formData.append('logo', file); // 'logo' matches multer field name
+
+      const res = await api.post(
+        `/organizations/${activeOrg.id}/upload-logo`,
+        formData,
+        {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        },
+      );
+
+      // Update Redux activeOrg with new logo URL
+      dispatch(setActiveOrg(res.data.data.organization));
+
+      // Clean up local preview
+      URL.revokeObjectURL(localPreviewUrl);
+      setPreview(null);
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.message || 'Upload failed. Please try again.',
+      );
+      setPreview(null);
+    } finally {
+      URL.revokeObjectURL(localPreviewUrl);
+      setPreview(null);
+      setIsUploading(false);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // What to display: local preview → saved logo → placeholder icon
+  const displayImage = preview || activeOrg?.logo;
+
+  // First letter of org name as fallback
+  const orgInitial = activeOrg?.name?.[0]?.toUpperCase() ?? 'O';
+
+  return (
+    <div className="flex items-center gap-4 pb-2">
+      {/* Clickable logo */}
+      <div className="relative group">
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+          className="relative w-16 h-16 rounded-xl overflow-hidden focus:outline-none focus:ring-2 focus:ring-[#476e66] focus:ring-offset-2"
+          title="Click to change organization logo"
+        >
+          {/* Logo image or initial fallback */}
+          {displayImage ? (
+            <img
+              src={displayImage}
+              alt="Organization logo"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-[#476e66]/20 border-2 border-dashed border-[#476e66]/40 flex items-center justify-center">
+              <span className="text-[#476e66] font-bold text-xl">
+                {orgInitial}
+              </span>
+            </div>
+          )}
+
+          {/* Hover overlay */}
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-xl">
+            {isUploading ? (
+              <Loader2 size={18} className="text-white animate-spin" />
+            ) : (
+              <Camera size={18} className="text-white" />
+            )}
+          </div>
+        </button>
+
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/jpg,image/png,image/webp,image/svg+xml"
+          className="hidden"
+          onChange={handleFileSelect}
+        />
+      </div>
+
+      {/* Text beside logo */}
+      <div>
+        <p className="text-sm font-medium text-slate-900 dark:text-white">
+          Organization Logo
+        </p>
+        <p className="text-xs text-[#708a83]">
+          Recommended: square image, at least 200×200px
+        </p>
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+          className="text-xs text-[#476e66] hover:underline mt-0.5 disabled:opacity-50"
+        >
+          {isUploading ? 'Uploading...' : 'Change logo'}
+        </button>
+        {error && (
+          <p className="text-xs text-red-500 mt-0.5">{error}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────
 // GENERAL TAB
 // ─────────────────────────────────────────
 
 const generalSchema = z.object({
   name: z.string().min(2).max(100),
-  logo: z.string().url('Must be a valid URL').optional().or(z.literal('')),
+  // logo: z.string().url('Must be a valid URL').optional().or(z.literal('')),
 });
 
 function GeneralTab() {
@@ -49,13 +179,21 @@ function GeneralTab() {
   const [success, setSuccess] = useState(false);
   const [apiError, setApiError] = useState('');
 
-  const { register, handleSubmit, formState: { errors } } = useForm({
+  const { register, handleSubmit, formState: { errors }, reset } = useForm({
     resolver: zodResolver(generalSchema),
     defaultValues: {
       name: activeOrg?.name || '',
-      logo: activeOrg?.logo || '',
+      // logo: activeOrg?.logo || '',
     },
   });
+
+  useEffect(() => {
+    if (activeOrg) {
+      reset({
+        name: activeOrg.name,
+      });
+    }
+  }, [activeOrg?.id, reset]);
 
   const onSubmit = async (data: any) => {
     if (!activeOrg) return;
@@ -66,7 +204,7 @@ function GeneralTab() {
     try {
       const response = await api.patch(`/organizations/${activeOrg.id}`, {
         name: data.name,
-        logo: data.logo || null,
+        // logo: data.logo || null,
       });
 
       dispatch(setActiveOrg(response.data.data));
@@ -110,7 +248,7 @@ function GeneralTab() {
         <p className="text-xs text-slate-400">Slug is permanent after creation.</p>
       </div>
 
-      <div className="space-y-2">
+      {/* <div className="space-y-2">
         <Label>Logo URL <span className="text-slate-400 font-normal text-xs">(optional)</span></Label>
         <Input
           type="url"
@@ -119,7 +257,9 @@ function GeneralTab() {
           className={errors.logo ? 'border-red-500' : ''}
         />
         {errors.logo && <p className="text-xs text-red-500">{errors.logo.message as string}</p>}
-      </div>
+      </div> */}
+
+      <LogoUploader />
 
       <Button
         type="submit"
@@ -316,6 +456,7 @@ function DangerZoneTab() {
   );
 }
 
+
 // ─────────────────────────────────────────
 // PAGE
 // ─────────────────────────────────────────
@@ -350,11 +491,10 @@ export default function OrganizationSettingsPage() {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`px-5 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                activeTab === tab.key
-                  ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
-                  : 'border-transparent text-gray-600 hover:text-slate-900 dark:hover:text-white'
-              } ${tab.key === 'danger' ? 'text-red-500 hover:text-red-600' : ''}`}
+              className={`px-5 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${activeTab === tab.key
+                ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                : 'border-transparent text-gray-600 hover:text-slate-900 dark:hover:text-white'
+                } ${tab.key === 'danger' ? 'text-red-500 hover:text-red-600' : ''}`}
             >
               {tab.label}
             </button>

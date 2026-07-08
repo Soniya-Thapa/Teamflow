@@ -3,6 +3,7 @@ import multer from 'multer';
 import { authenticate } from '@/middleware/auth.middleware';
 import { requireOrganization } from '@/middleware/tenant.middleware';
 import attachmentController from './attachment.controller';
+import { checkQuota } from '@/middleware/quota.middleware';
 
 const router = Router({ mergeParams: true });
 router.use(authenticate, requireOrganization);
@@ -14,7 +15,7 @@ const upload = multer({
 });
 
 router.get('/:taskId/attachments', attachmentController.list);
-router.post('/:taskId/attachments', upload.single('file'), attachmentController.upload);
+router.post('/:taskId/attachments', upload.single('file'), checkQuota('storage'),  attachmentController.upload);
 router.delete('/attachments/:attachmentId', attachmentController.delete);
 
 export default router;

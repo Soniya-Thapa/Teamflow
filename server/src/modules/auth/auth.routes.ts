@@ -1,5 +1,6 @@
 
 import { Router } from "express";
+import multer from 'multer';
 import authController from "./auth.controller";
 import { validate } from "@/middleware/validation.middleware";
 import {
@@ -14,6 +15,12 @@ import { authenticate } from "@/middleware/auth.middleware";
 import { authRateLimit } from "@/middleware/rateLimit.middleware";
 
 const router = Router();
+
+// Create multer instance (memory storage — no disk writes)
+const avatarUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+});
 
 // Authentication Routes
 
@@ -52,4 +59,10 @@ router.post('/change-password', authenticate, validate(changePasswordSchema), au
 router.post('/send-verification', authenticate, authController.sendVerificationEmail);
 router.get('/verify-email', authController.verifyEmail); // public — token in query
 
+router.post('/upload-avatar',authenticate,
+  avatarUpload.single('avatar'), // 'avatar' is the form field name
+  authController.uploadAvatar,);
+
+// Add with the other protected routes (after authenticate middleware):
+router.get('/organizations', authenticate, authController.getUserOrganizations);
 export default router;

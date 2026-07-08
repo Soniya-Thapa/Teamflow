@@ -21,6 +21,7 @@
  */
 
 import { Router } from 'express';
+import multer from 'multer';
 import { authenticate } from '@/middleware/auth.middleware';
 import { validate } from '@/middleware/validation.middleware';
 import organizationController from './organization.controller';
@@ -36,6 +37,11 @@ import {
 } from './organization.validation';
 
 const router = Router();
+
+const logoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+});
 
 // Apply authentication to ALL organization routes
 router.use(authenticate);
@@ -56,18 +62,29 @@ router.patch('/:id', validate(updateOrganizationSchema), organizationController.
 router.delete('/:id', validate(deleteOrganizationSchema), organizationController.deleteOrganization);
 
 // GET /api/v1/organizations/:id/settings
-router.get('/:id/settings',validate(getOrganizationSchema),organizationController.getSettings);
+router.get('/:id/settings', validate(getOrganizationSchema), organizationController.getSettings);
 
 // PATCH /api/v1/organizations/:id/settings
-router.patch('/:id/settings',validate(updateOrganizationSettingsSchema),organizationController.updateSettings);
+router.patch('/:id/settings', validate(updateOrganizationSettingsSchema), organizationController.updateSettings);
 
 // GET /api/v1/organizations/:id/usage
-router.get('/:id/usage',validate(getOrganizationSchema),organizationController.getUsage);
+router.get('/:id/usage', validate(getOrganizationSchema), organizationController.getUsage);
 
 // PATCH /api/v1/organizations/:id/status
-router.patch('/:id/status',validate(updateOwnerStatusSchema),organizationController.updateStatus);
+router.patch('/:id/status', validate(updateOwnerStatusSchema), organizationController.updateStatus);
 
 // PATCH /api/v1/organizations/:id/onboarding
-router.patch('/:id/onboarding',validate(updateOnboardingSchema),organizationController.updateOnboarding);
+router.patch('/:id/onboarding', validate(updateOnboardingSchema), organizationController.updateOnboarding);
+
+// Add this line with your other GET routes:
+router.get('/:id/dashboard-stats', validate(getOrganizationSchema), organizationController.getDashboardStats);
+
+router.post('/:id/upload-logo', validate(getOrganizationSchema), logoUpload.single('logo'), organizationController.uploadLogo,);
+
+router.get('/:id/health-score', organizationController.getHealthScore);
+
+router.get('/:id/ai-digest/latest', organizationController.getLatestDigest);
+
+router.get('/:id/ai-digest/history', organizationController.getDigestHistory);
 
 export default router;

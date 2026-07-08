@@ -45,6 +45,7 @@ import {
   removeProjectMemberSchema,
   duplicateProjectSchema,
 } from './project.validation';
+import { checkQuota } from '@/middleware/quota.middleware';
 
 const router = Router({ mergeParams: true });
 
@@ -66,6 +67,7 @@ router.post(
   '/',
   validate(createProjectSchema),
   requirePermission('project:create'),
+  checkQuota('projects'),
   projectController.createProject,
 );
 

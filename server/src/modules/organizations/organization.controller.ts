@@ -12,6 +12,9 @@
 import { Request, Response } from 'express';
 import { BaseController } from "@/common/BaseController";
 import organizationService from './organization.service';
+import { emitToOrg } from '@/config/socket';
+import healthScoreService from '../ai/health-score.service';
+import prisma from '@/config/database';
 
 class OrganizationController extends BaseController {
 
@@ -183,6 +186,67 @@ class OrganizationController extends BaseController {
     const settings = await organizationService.updateOnboarding(id as string, userId, onboardingStep);
 
     return this.sendSuccess(res, settings, 'Onboarding progress updated');
+  });
+
+  //--------------------------------------------------------------------
+
+  getDashboardStats = this.asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const userId = req.userId!;
+
+    const result = await organizationService.getDashboardStats(
+      id as string,
+      userId,
+    );
+
+    return this.sendSuccess(res, result, 'Dashboard stats retrieved');
+  });
+
+  //-----------------------------UPLOAD ORGANIZATION LOGO-----------------------------
+
+  uploadLogo = this.asyncHandler(async (req: Request, res: Response) => {
+
+    const { id } = req.params;
+
+    const result = await organizationService.uploadLogo(
+      id as string,
+      req.file
+    );
+
+    return this.sendSuccess(
+      res,
+      result,
+      "Logo uploaded successfully"
+    );
+  });
+
+  //--------------------------------------------------------------------------
+
+  getHealthScore = this.asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const result = await healthScoreService.getOrgHealthScore(id as string);
+    return this.sendSuccess(res, result, 'Health score calculated');
+  });
+
+  //--------------------------------------------------------------------------------
+
+  getLatestDigest = this.asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const report = await prisma.aiDigestReport.findFirst({
+      where: { organizationId: id as string },
+      orderBy: { generatedAt: 'desc' },
+    });
+    return this.sendSuccess(res, report, 'Latest digest fetched');
+  });
+
+  getDigestHistory = this.asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const reports = await prisma.aiDigestReport.findMany({
+      where: { organizationId: id as string },
+      orderBy: { generatedAt: 'desc' },
+      take: 10,
+    });
+    return this.sendSuccess(res, reports, 'Digest history fetched');
   });
 }
 

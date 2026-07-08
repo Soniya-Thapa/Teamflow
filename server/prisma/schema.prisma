@@ -96,6 +96,7 @@ enum NotificationType {
   ORGANIZATION_STATUS_UPDATED
   INVITATION_ACCEPTED
   COMMENT_ADDED
+  AI_DIGEST_READY
 }
 
 // CORE ENTITIES
@@ -129,6 +130,7 @@ model Organization {
   settings      OrganizationSettings?
   usage         OrganizationUsage?
   roles         Role[]  
+  aiDigestReports AiDigestReport[]
 
   @@index([slug])
   @@index([status])
@@ -608,6 +610,27 @@ model Notification {
   @@index([isRead])
   @@index([createdAt])
   @@map("notifications")
+}
+
+model AiDigestReport {
+  id             String   @id @default(uuid())
+  organizationId String
+  generatedAt    DateTime @default(now())
+
+  overdueCount       Int
+  mostOverloaded     String?
+  leastLoaded        String?
+  inactiveProjects   Json
+  estimatedDelayDays Float
+
+  summaryText String
+  rawStats    Json
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([generatedAt])
+  @@map("ai_digest_reports")
 }
 
 model RefreshToken {

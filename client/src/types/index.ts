@@ -75,25 +75,43 @@ export interface TeamMember {
   };
 }
 
+// Find your Team interface and update it:
 export interface Team {
   id: string;
-  organizationId: string;
   name: string;
-  description: string | null;
-  leaderId: string | null;
+  description?: string | null;
+  leaderId?: string | null;
+  organizationId: string;
+  createdAt: string;
+  updatedAt: string;
+
+  // leader is NOT a direct field — it comes from members array
+  // Keep this for backward compat if used elsewhere:
   leader?: {
     id: string;
     firstName: string;
     lastName: string;
-    avatar: string | null;
+    email: string;
+    avatar?: string | null;
   } | null;
-  members?: TeamMember[];
+
+  // What the API actually returns:
+  members?: {
+    id: string;
+    role: string;
+    user: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      avatar?: string | null;
+    };
+  }[];
+
   _count?: {
     members: number;
     projects: number;
   };
-  createdAt: string;
-  updatedAt: string;
 }
 
 // ─────────────────────────────────────────

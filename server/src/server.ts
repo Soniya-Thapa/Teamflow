@@ -7,6 +7,7 @@ import redis from '@/config/redis';
 import { envConfig } from './config/env.config';
 import { setupPrismaTenantMiddleware } from './middleware/tenant.middleware';
 import { initializeSocket } from './config/socket';
+import { registerScheduledJobs } from '@/modules/jobs/scheduled.jobs';
 
 //Setup Prisma tenant middleware
 setupPrismaTenantMiddleware();
@@ -18,6 +19,10 @@ const httpServer = http.createServer(app);
 
 // Initialize Socket.io on the same HTTP server
 initializeSocket(httpServer);
+
+registerScheduledJobs().catch((err) =>
+  logger.error('Failed to register scheduled jobs', { err }),
+);
 
 httpServer.listen(PORT, () => {
   logger.info(`Server running on port ${PORT}`);

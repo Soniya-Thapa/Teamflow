@@ -116,11 +116,10 @@ export function FileUpload({ taskId, attachments, onUpdate }: FileUploadProps) {
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
-        className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors ${
-          isDragging
+        className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors ${isDragging
             ? 'border-[#476e66] bg-[#476e66]/5'
             : 'border-[#dfdfe2] dark:border-slate-700 hover:border-[#708a83]'
-        }`}
+          }`}
       >
         <input
           ref={inputRef}
@@ -187,7 +186,7 @@ export function FileUpload({ taskId, attachments, onUpdate }: FileUploadProps) {
               </div>
 
               <div className="flex items-center gap-1 shrink-0">
-                
+                <a
                   href={attachment.fileUrl}
                   target="_blank"
                   rel="noopener noreferrer"

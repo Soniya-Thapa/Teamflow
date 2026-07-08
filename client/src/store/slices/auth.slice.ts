@@ -25,7 +25,7 @@
  */
 
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { User} from '@/types';
+import { User } from '@/types';
 import api from '@/lib/axios';
 
 // ─────────────────────────────────────────
@@ -69,9 +69,7 @@ const initialState: AuthState = {
 /**
  * Login action — calls /auth/login and  backend sets httpOnly cookies, we receive user data only
  */
-export const loginUser = createAsyncThunk(
-  'auth/login',
-  async (
+export const loginUser = createAsyncThunk('auth/login',async (
     credentials: { email: string; password: string },
     { rejectWithValue },
   ) => {
@@ -160,7 +158,7 @@ const authSlice = createSlice({
     //   );
     // },
 
-       updateUser(state, action: PayloadAction<Partial<User>>) {
+    updateUser(state, action: PayloadAction<Partial<User>>) {
       if (state.user) {
         state.user = { ...state.user, ...action.payload };
       }
@@ -180,7 +178,7 @@ const authSlice = createSlice({
   extraReducers: (builder) => {
 
     // ─── LOGIN ───
-     builder
+    builder
       .addCase(loginUser.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -214,7 +212,7 @@ const authSlice = createSlice({
       });
 
     // ─── LOGOUT ───
-     builder
+    builder
       .addCase(logoutUser.fulfilled, (state) => {
         state.user = null;
         state.isAuthenticated = false;
@@ -222,7 +220,7 @@ const authSlice = createSlice({
         setAuthCookie(false);
       });
 
-       // ─── FETCH CURRENT USER (app boot) ───
+    // ─── FETCH CURRENT USER (app boot) ───
     builder
       .addCase(fetchCurrentUser.pending, (state) => {
         state.isLoading = true;

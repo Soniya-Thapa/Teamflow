@@ -17,7 +17,7 @@ import organizationRoutes from '@/modules/organizations/organization.routes';
 import adminRoutes from '@/modules/admin/admin.routes';
 import roleRoutes from '@/modules/roles/role.routes';
 import teamRoutes from '@/modules/teams/team.routes';
-import {orgInvitationRouter,publicInvitationRouter} from '@/modules/invitations/invitation.routes';
+import { orgInvitationRouter, publicInvitationRouter } from '@/modules/invitations/invitation.routes';
 import projectRoutes from '@/modules/projects/project.routes';
 import taskRoutes from '@/modules/tasks/task.routes';
 import memberRoutes from '@/modules/members/member.routes';
@@ -26,8 +26,13 @@ import activityRoutes from '@/modules/notifications/activity.routes';
 import searchRoutes from '@/modules/search/search.routes';
 import attachmentRoutes from '@/modules/attachments/attachment.routes';
 import billingRoutes, { webhookRouter } from '@/modules/billing/billing.routes';
+import analyticsRoutes from '@/modules/analytics/analytics.routes';
+import { apiRateLimit, strictRateLimit } from '@/middleware/rateLimitRedis.middleware';
+// import { sanitizeInputs } from '@/middleware/sanitize.middleware';
 
 const app: Application = express();
+
+const API_PREFIX = envConfig.apiPrefix;
 
 // Security middleware
 app.use(helmet());
@@ -44,6 +49,15 @@ app.use(
 
 app.use(cookieParser());
 
+app.use(compression());
+
+// ─────────────────────────────────────────
+// WEBHOOK (IMPORTANT: MUST BE BEFORE BODY PARSERS)
+// ─────────────────────────────────────────
+// Stripe webhook needs RAW body, so it must come first
+
+app.use(`${API_PREFIX}`, webhookRouter);
+
 // Body parser
 
 // express.json()
@@ -54,6 +68,8 @@ app.use(cookieParser());
 // These middlewares only affect incoming request, not response.
 
 app.use(express.json({ limit: '10mb' })); //If the request body is JSON → convert it into a JavaScript object → put it inside req.body. ❗ It only works for request (req), not response (res).
+// app.use(sanitizeInputs);
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Fix BigInt JSON serialization
 // BigInt is used for maxStorage (bytes) — JavaScript's JSON.stringify
@@ -63,24 +79,29 @@ app.use(express.json({ limit: '10mb' })); //If the request body is JSON → conv
   return this.toString();
 };
 
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// ─────────────────────────────────────────
+// RATE LIMITING
+// ─────────────────────────────────────────
 
-// Compression
-app.use(compression());
+app.use(API_PREFIX, apiRateLimit);
+
+app.use(`${API_PREFIX}/auth/login`, strictRateLimit);
+app.use(`${API_PREFIX}/auth/register`, strictRateLimit);
+app.use(`${API_PREFIX}/auth/forgot-password`, strictRateLimit);
 
 // HTTP request logging
 if (envConfig.nodeEnv === 'development') {
-// It shows: HTTP method, URL, Status code, Response time, Colored output
+  // It shows: HTTP method, URL, Status code, Response time, Colored output
   app.use(morgan('dev'));
 } else {
-// It logs much more information: Client IP, User, Date & time, Method, URL, Status code, Response size, Referrer, User agent (browser info)
+  // It logs much more information: Client IP, User, Date & time, Method, URL, Status code, Response size, Referrer, User agent (browser info)
   app.use(
     morgan('combined', {
       stream: {
         write: (message: string) => logger.info(message.trim()),
       },
     }),
-  );organizationRoutes
+  ); 
 }
 
 // Health check endpoint: Simple route to confirm server is alive.
@@ -96,7 +117,6 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 // API version endpoint
-const API_PREFIX = envConfig.apiPrefix;
 
 app.get(`${API_PREFIX}`, (req: Request, res: Response) => {
   res.json({
@@ -122,8 +142,8 @@ app.use(`${API_PREFIX}/organizations/:id/notifications`, notificationRoutes);
 app.use(`${API_PREFIX}/organizations/:id/activity`, activityRoutes);
 app.use(`${API_PREFIX}/organizations/:id/search`, searchRoutes);
 app.use(`${API_PREFIX}/organizations/:id/tasks`, attachmentRoutes);
-app.use(`${API_PREFIX}`, webhookRouter);
 app.use(`${API_PREFIX}/organizations/:id/billing`, billingRoutes);
+app.use(`${API_PREFIX}/organizations/:id/analytics`, analyticsRoutes);
 
 // 404 handler - must be after all routes
 app.use(notFoundHandler);

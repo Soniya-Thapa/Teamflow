@@ -232,6 +232,43 @@ class AuthController extends BaseController {
     return this.sendSuccess(res, result, 'Email verified successfully');
   });
 
+  //--------------------------------------------------
+
+  // Add at the bottom of the class, before the closing brace:
+
+  getUserOrganizations = this.asyncHandler(
+  async (req: Request, res: Response) => {
+    const userId = req.userId!;
+
+    const organizations =
+      await authService.getUserOrganizations(userId);
+
+    return this.sendSuccess(
+      res,
+      { organizations },
+      'Organizations retrieved',
+    );
+  },
+);
+
+//--------------------------------------------------------------------------------
+
+//-----------------------------UPLOAD USER AVATAR-----------------------------
+
+// POST /api/v1/auth/upload-avatar
+uploadAvatar = this.asyncHandler(async (req: Request, res: Response) => {
+
+  const userId = req.userId!;
+
+  const result = await authService.uploadAvatar(userId, req.file);
+
+  return this.sendSuccess(
+    res,
+    result,
+    "Avatar uploaded successfully"
+  );
+});
+
 }
 
 export default new AuthController();
